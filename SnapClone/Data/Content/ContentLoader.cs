@@ -47,20 +47,19 @@ namespace SnapClone.Data.Content
         
         private static void LoadEffects(EffectRegistry effectRegistry)
         {
-            // Zone effects
+            // Zone effects: siguen registrados porque las zonas los referencian,
+            // aunque este cambio no los implementa.
             effectRegistry.Register(new EffectDef { Id = "zone_effect_plus1_all", EffectType = "ZonePowerModifier", Trigger = EffectTrigger.ZoneContinuous, Parameters = new Dictionary<string, object> { { "amount", 1 }, { "target", "all" } } });
             effectRegistry.Register(new EffectDef { Id = "zone_effect_minus1_all", EffectType = "ZonePowerModifier", Trigger = EffectTrigger.ZoneContinuous, Parameters = new Dictionary<string, object> { { "amount", -1 }, { "target", "all" } } });
             effectRegistry.Register(new EffectDef { Id = "zone_effect_plus2_highest_cost", EffectType = "ZonePowerModifier", Trigger = EffectTrigger.ZoneContinuous, Parameters = new Dictionary<string, object> { { "amount", 2 }, { "target", "highest_cost" } } });
-            
-            // Create 20 effects across 5 types (5 of each)
-            for (int i = 1; i <= 5; i++)
-            {
-                effectRegistry.Register(new EffectDef { Id = $"onreveal_{i}", EffectType = "OnRevealEffect", Trigger = EffectTrigger.OnReveal, Parameters = new Dictionary<string, object>() });
-                effectRegistry.Register(new EffectDef { Id = $"ongoing_{i}", EffectType = "OngoingEffect", Trigger = EffectTrigger.Ongoing, Parameters = new Dictionary<string, object>() });
-                effectRegistry.Register(new EffectDef { Id = $"endofturn_{i}", EffectType = "EndOfTurnEffect", Trigger = EffectTrigger.EndOfTurn, Parameters = new Dictionary<string, object>() });
-                effectRegistry.Register(new EffectDef { Id = $"activate_{i}", EffectType = "ActivateEffect", Trigger = EffectTrigger.Activate, Parameters = new Dictionary<string, object>() });
-                effectRegistry.Register(new EffectDef { Id = $"zone_{i}", EffectType = "ZoneEffect", Trigger = EffectTrigger.ZoneContinuous, Parameters = new Dictionary<string, object>() });
-            }
+
+            // Efectos de carta de este pool.
+            effectRegistry.Register(new EffectDef { Id = "effect_hawkeye_on_reveal", EffectType = "OnRevealArmNextTurnBonus", Trigger = EffectTrigger.OnReveal, Parameters = new Dictionary<string, object> { { "amount", 5 } } });
+            effectRegistry.Register(new EffectDef { Id = "effect_iron_man_ongoing", EffectType = "OngoingZonePowerMultiplier", Trigger = EffectTrigger.Ongoing, Parameters = new Dictionary<string, object> { { "multiplier", 2 } } });
+            effectRegistry.Register(new EffectDef { Id = "effect_medusa_on_reveal", EffectType = "OnRevealBonusIfMiddle", Trigger = EffectTrigger.OnReveal, Parameters = new Dictionary<string, object> { { "amount", 3 }, { "zoneIndex", 1 } } });
+            effectRegistry.Register(new EffectDef { Id = "effect_punisher_ongoing", EffectType = "OngoingPowerPerEnemyCard", Trigger = EffectTrigger.Ongoing, Parameters = new Dictionary<string, object> { { "amount", 1 } } });
+            effectRegistry.Register(new EffectDef { Id = "effect_sentinel_on_reveal", EffectType = "OnRevealAddCardToHand", Trigger = EffectTrigger.OnReveal, Parameters = new Dictionary<string, object> { { "cardId", "card_sentinel" } } });
+            effectRegistry.Register(new EffectDef { Id = "effect_star_lord_on_reveal", EffectType = "OnRevealBonusIfEnemyPlayedHere", Trigger = EffectTrigger.OnReveal, Parameters = new Dictionary<string, object> { { "amount", 4 } } });
         }
         
         private static void LoadPerks(PerkRegistry perkRegistry)
@@ -72,26 +71,89 @@ namespace SnapClone.Data.Content
         
         private static void LoadCards(CardRegistry cardRegistry)
         {
-            cardRegistry.Register(new CardDef { Id = "card_1", Name = "Weakling", Cost = 1, BasePower = 1, Description = "Un cuerpo barato para abrir una zona sin gastar energia. Rinde cuando la partida apenas empieza." });
-            cardRegistry.Register(new CardDef { Id = "card_2", Name = "Fighter", Cost = 2, BasePower = 2, Description = "Combatiente equilibrado: paga lo que vale y no pide mas. Un relleno fiable para cualquier zona." });
-            cardRegistry.Register(new CardDef { Id = "card_3", Name = "Brute", Cost = 3, BasePower = 3, Description = "Fuerza bruta de coste medio. Util para igualar una zona que el rival ya esta disputando." });
-            cardRegistry.Register(new CardDef { Id = "card_4", Name = "Behemoth", Cost = 4, BasePower = 4, Description = "Criatura enorme a precio justo. Su peso sirve para inclinar una zona cerrada." });
-            cardRegistry.Register(new CardDef { Id = "card_5", Name = "Titan", Cost = 5, BasePower = 5, Description = "Un titan de coste alto. Cuando cae, su poder se nota en el total de la zona." });
-            cardRegistry.Register(new CardDef { Id = "card_6", Name = "Scout", Cost = 1, BasePower = 2, Description = "Explorador barato con mas poder del que su coste sugiere. Ideal para el primer turno." });
-            cardRegistry.Register(new CardDef { Id = "card_7", Name = "Warrior", Cost = 2, BasePower = 3, Description = "Guerrero eficiente: un poder por encima de su coste. Buen fichaje para cualquier zona." });
-            cardRegistry.Register(new CardDef { Id = "card_8", Name = "Champion", Cost = 3, BasePower = 4, Description = "Campeon de coste medio y golpe firme. Destaca en zonas donde el rival no puede responder." });
-            cardRegistry.Register(new CardDef { Id = "card_9", Name = "Rookie", Cost = 1, BasePower = 3, Description = "Novato con un golpe sorprendente para su coste. Rinde muy por encima de lo esperado temprano." });
-            cardRegistry.Register(new CardDef { Id = "card_10", Name = "Watcher", Cost = 2, BasePower = 1, Description = "Vigila desde la retaguardia. Su valor no esta en el poder, sino en ocupar un hueco con poco gasto." });
-            cardRegistry.Register(new CardDef { Id = "card_11", Name = "Raven", Cost = 2, BasePower = 4, Description = "Ave de presa: mucha fuerza por poco coste. Castiga una zona que el rival descuida." });
-            cardRegistry.Register(new CardDef { Id = "card_12", Name = "Brawler", Cost = 3, BasePower = 2, Description = "Peleador de segunda linea. Su coste prepara jugadas mayores en el mismo turno." });
-            cardRegistry.Register(new CardDef { Id = "card_13", Name = "Colossus", Cost = 3, BasePower = 5, Description = "Coloso de coste contenido. Uno de los mejores cuerpos medios de la baraja." });
-            cardRegistry.Register(new CardDef { Id = "card_14", Name = "Wraith", Cost = 4, BasePower = 2, Description = "Espectro ligero para su coste. Sirve para completar una zona sin comprometer energia." });
-            cardRegistry.Register(new CardDef { Id = "card_15", Name = "Juggernaut", Cost = 4, BasePower = 6, Description = "Imparable cuando llega. Un golpe de seis casi siempre decide una zona." });
-            cardRegistry.Register(new CardDef { Id = "card_16", Name = "Devourer", Cost = 5, BasePower = 3, Description = "Devorador caro pero modesto. Su valor aparece cuando sobra energia y falta hueco." });
-            cardRegistry.Register(new CardDef { Id = "card_17", Name = "Herald", Cost = 5, BasePower = 7, Description = "Heraldo de poder altisimo. Casi garantiza el control de la zona donde cae." });
-            cardRegistry.Register(new CardDef { Id = "card_18", Name = "Sentinel", Cost = 6, BasePower = 5, Description = "Centinela de coste maximo. Aguanta zonas disputadas con un cuerpo solido." });
-            cardRegistry.Register(new CardDef { Id = "card_19", Name = "Leviathan", Cost = 6, BasePower = 8, Description = "Leviatan: el mayor golpe de la baraja. Donde cae, la zona suele quedar resuelta." });
-            cardRegistry.Register(new CardDef { Id = "card_20", Name = "Spark", Cost = 0, BasePower = 1, Description = "Chispa gratuita. Ocupa una casilla sin gastar energia y suma desde el primer turno." });
+            // 13 cartas starter + 7 rellenos vanilla = 20 cartas.
+
+            // Starter vanilla
+            cardRegistry.Register(new CardDef { Id = "card_abomination", Name = "Abomination", Cost = 5, BasePower = 9, Description = "Un cuerpo enorme de coste alto. Su poder cierra zonas y aguanta la presion rival." });
+            cardRegistry.Register(new CardDef { Id = "card_cyclops", Name = "Cyclops", Cost = 3, BasePower = 5, Description = "Un cuerpo medio eficiente. Aporta mas poder del que cuesta y ocupa una zona con solidez." });
+            cardRegistry.Register(new CardDef { Id = "card_hulk", Name = "Hulk", Cost = 6, BasePower = 14, Description = "El mayor golpe de la baraja. Donde cae, la zona suele quedar resuelta." });
+            cardRegistry.Register(new CardDef { Id = "card_misty_knight", Name = "Misty Knight", Cost = 1, BasePower = 3, Description = "Una carta barata con gran poder para su coste. Ideal para abrir una zona temprano." });
+            cardRegistry.Register(new CardDef { Id = "card_shocker", Name = "Shocker", Cost = 2, BasePower = 4, Description = "Un cuerpo de coste bajo con poder de sobra. Buen fichaje para cualquier zona." });
+            cardRegistry.Register(new CardDef { Id = "card_the_thing", Name = "The Thing", Cost = 4, BasePower = 7, Description = "Una mole de coste medio. Su poder inclina zonas cerradas y aguanta la respuesta rival." });
+
+            // Starter con habilidad
+            cardRegistry.Register(new CardDef
+            {
+                Id = "card_hawkeye",
+                Name = "Hawkeye",
+                Cost = 1,
+                BasePower = 1,
+                Description = "Al revelarse: si juegas una carta aqui el siguiente turno, gana +5 de Poder.",
+                EffectIds = new List<string> { "effect_hawkeye_on_reveal" }
+            });
+            cardRegistry.Register(new CardDef
+            {
+                Id = "card_iron_man",
+                Name = "Iron Man",
+                Cost = 5,
+                BasePower = 0,
+                Description = "Continuo: duplica el Poder total de tu zona.",
+                EffectIds = new List<string> { "effect_iron_man_ongoing" }
+            });
+            cardRegistry.Register(new CardDef
+            {
+                Id = "card_medusa",
+                Name = "Medusa",
+                Cost = 2,
+                BasePower = 2,
+                Description = "Al revelarse: si esta en la zona central, gana +3 de Poder.",
+                EffectIds = new List<string> { "effect_medusa_on_reveal" }
+            });
+            cardRegistry.Register(new CardDef
+            {
+                Id = "card_punisher",
+                Name = "Punisher",
+                Cost = 3,
+                BasePower = 3,
+                Description = "Continuo: +1 de Poder por cada carta enemiga en esta zona.",
+                EffectIds = new List<string> { "effect_punisher_ongoing" }
+            });
+            cardRegistry.Register(new CardDef
+            {
+                Id = "card_quicksilver",
+                Name = "Quicksilver",
+                Cost = 1,
+                BasePower = 2,
+                Description = "Empieza siempre en tu mano inicial.",
+                Tags = new List<string> { "starts_in_hand" }
+            });
+            cardRegistry.Register(new CardDef
+            {
+                Id = "card_sentinel",
+                Name = "Sentinel",
+                Cost = 2,
+                BasePower = 3,
+                Description = "Al revelarse: agrega una Sentinel a tu mano.",
+                EffectIds = new List<string> { "effect_sentinel_on_reveal" }
+            });
+            cardRegistry.Register(new CardDef
+            {
+                Id = "card_star_lord",
+                Name = "Star-Lord",
+                Cost = 2,
+                BasePower = 2,
+                Description = "Al revelarse: si el rival jugo una carta en esta zona este turno, gana +4 de Poder.",
+                EffectIds = new List<string> { "effect_star_lord_on_reveal" }
+            });
+
+            // Rellenos vanilla
+            cardRegistry.Register(new CardDef { Id = "card_spark", Name = "Spark", Cost = 0, BasePower = 1, Description = "Chispa gratuita. Ocupa una casilla sin gastar energia y suma desde el primer turno." });
+            cardRegistry.Register(new CardDef { Id = "card_raven", Name = "Raven", Cost = 2, BasePower = 4, Description = "Ave de presa: mucha fuerza por poco coste. Castiga una zona que el rival descuida." });
+            cardRegistry.Register(new CardDef { Id = "card_champion", Name = "Champion", Cost = 3, BasePower = 4, Description = "Campeon de coste medio y golpe firme. Destaca en zonas donde el rival no puede responder." });
+            cardRegistry.Register(new CardDef { Id = "card_behemoth", Name = "Behemoth", Cost = 4, BasePower = 4, Description = "Criatura enorme a precio justo. Su peso sirve para inclinar una zona cerrada." });
+            cardRegistry.Register(new CardDef { Id = "card_juggernaut", Name = "Juggernaut", Cost = 4, BasePower = 6, Description = "Imparable cuando llega. Un golpe de seis casi siempre decide una zona." });
+            cardRegistry.Register(new CardDef { Id = "card_titan", Name = "Titan", Cost = 5, BasePower = 5, Description = "Un titan de coste alto. Cuando cae, su poder se nota en el total de la zona." });
+            cardRegistry.Register(new CardDef { Id = "card_leviathan", Name = "Leviathan", Cost = 6, BasePower = 8, Description = "Leviatan: un cuerpo enorme de coste maximo. Su poder sostiene una zona disputada." });
         }
     }
 }

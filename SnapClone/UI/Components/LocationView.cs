@@ -35,17 +35,12 @@ namespace SnapClone.UI.Components
         private static readonly Color ArtTop = new Color(38, 58, 92);
         private static readonly Color ArtBottom = new Color(14, 18, 32);
 
-        public void RecalculatePower()
+        /// <summary>
+        /// Copia los totales de la zona. Solo CombatScene.RefreshPowerTotals
+        /// escribe estos valores; la vista no suma cartas por su cuenta.
+        /// </summary>
+        public void SetPower(int player, int opponent)
         {
-            int player = 0;
-            int opponent = 0;
-
-            foreach (var view in PlayerSlotCards)
-                if (view?.Card != null) player += view.Card.CurrentPower;
-
-            foreach (var view in OpponentSlotCards)
-                if (view?.Card != null) opponent += view.Card.CurrentPower;
-
             PlayerPower = player;
             OpponentPower = opponent;
         }

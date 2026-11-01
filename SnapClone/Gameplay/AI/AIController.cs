@@ -31,6 +31,7 @@ namespace SnapClone.Gameplay.AI
             zone.AICards.Add(card);
             card.PlayedTurn = _boardState.CurrentTurn;
             card.PlayOrderIndex = _boardState.NextPlayOrder++;
+            card.PlayedZoneIndex = zone.ZoneIndex;
             card.IsInPlay = true;
             card.Location = CardLocation.Board;
             _boardState.AIHand.Remove(card);

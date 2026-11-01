@@ -29,6 +29,7 @@ C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\obj\Debug
 C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\obj\Debug\net9.0\SnapClone.AssemblyInfoInputs.cache
 C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\obj\Debug\net9.0\SnapClone.AssemblyInfo.cs
 C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\obj\Debug\net9.0\SnapClone.csproj.CoreCompileInputs.cache
+C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\obj\Debug\net9.0\SnapClone.sourcelink.json
 C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\obj\Debug\net9.0\SnapClone.csproj.Up2Date
 C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\obj\Debug\net9.0\SnapClone.dll
 C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\obj\Debug\net9.0\refint\SnapClone.dll

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SnapClone.Effects;
 using SnapClone.Gameplay.Board;
 using SnapClone.Gameplay.Cards;
 using SnapClone.Core.Services;
@@ -19,6 +20,7 @@ namespace SnapClone.Gameplay.Combat
         private readonly RevealResolver _revealResolver;
         private readonly TimeService _timeService;
         private readonly PowerResolver _powerResolver;
+        private readonly EffectProcessor _effectProcessor;
         private int _reservedEnergy;
 
         public TurnPhase CurrentPhase { get; private set; }
@@ -36,13 +38,15 @@ namespace SnapClone.Gameplay.Combat
 
         public bool IsMatchOver => _boardState.CurrentTurn >= MaxTurns;
 
-        public TurnManager(BoardState boardState, TimeService timeService, PowerResolver powerResolver = null)
+        public TurnManager(BoardState boardState, TimeService timeService,
+            PowerResolver powerResolver = null, EffectProcessor effectProcessor = null)
         {
             _boardState = boardState;
             _timeService = timeService;
             _priorityCalculator = new PriorityCalculator();
             _revealResolver = new RevealResolver();
             _powerResolver = powerResolver ?? new PowerResolver();
+            _effectProcessor = effectProcessor;
             CurrentPhase = TurnPhase.TurnStart;
         }
 
@@ -130,12 +134,16 @@ namespace SnapClone.Gameplay.Combat
             CurrentPhase = TurnPhase.TurnEnd;
             _reservedEnergy = 0;
 
+            // Primero se resuelven los efectos con el tablero tal como quedo
+            // al cerrar el turno; el poder se actualiza y solo despues se
+            // decide la prioridad del turno siguiente.
+            var revealOrder = _revealResolver.GetRevealOrder(_boardState);
+            _effectProcessor?.ResolveEndOfTurn(_boardState, revealOrder);
+
+            _powerResolver.UpdateAllPowers(_boardState);
+
             string newPriority = _priorityCalculator.CalculatePriority(_boardState, _boardState.PriorityOwner);
             _boardState.PriorityOwner = newPriority;
-
-            // Sin efectos aun: el orden de reveal se calcula pero no se usa.
-            _revealResolver.GetRevealOrder(_boardState);
-            _powerResolver.UpdateAllPowers(_boardState);
 
             CurrentPhase = TurnPhase.TurnStart;
         }

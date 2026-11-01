@@ -24,6 +24,23 @@ namespace SnapClone.Gameplay.Board
         public string PriorityOwner { get; set; } = "Player"; // Player or AI
         public int NextPlayOrder { get; set; } = 0;
 
+        private Combat.PowerResolver _powerResolver;
+
+        /// <summary>
+        /// Resolver compartido del combate. Al asignarlo, cada zona obtiene la
+        /// referencia al tablero para calcular su total por el mismo camino.
+        /// </summary>
+        public Combat.PowerResolver PowerResolver
+        {
+            get => _powerResolver;
+            set
+            {
+                _powerResolver = value;
+                foreach (var zone in Zones)
+                    zone.Board = this;
+            }
+        }
+
         public Gameplay.Cards.PileSet GetPiles(BoardSide side) =>
             side == BoardSide.Player ? PlayerPiles : AIPiles;
     }

@@ -6,6 +6,7 @@ using Microsoft.Xna.Framework.Input;
 using SnapClone.Core.Services;
 using SnapClone.Core.Layout;
 using SnapClone.Data.Registries;
+using SnapClone.Effects;
 using SnapClone.Gameplay.AI;
 using SnapClone.Gameplay.Board;
 using SnapClone.Gameplay.Cards;
@@ -38,6 +39,7 @@ namespace SnapClone.Scenes
         private Modal _modal;
         private VictoryResolver _victoryResolver;
         private PowerResolver _powerResolver;
+        private EffectProcessor _effectProcessor;
 
         private BoardState _boardState;
         private TurnManager _turnManager;
@@ -120,11 +122,15 @@ namespace SnapClone.Scenes
             _boardState = new BoardState();
 
             var perkRegistry = _services.Has<PerkRegistry>() ? _services.Get<PerkRegistry>() : null;
-            _powerResolver = new PowerResolver(perkRegistry);
+            var effectRegistry = _services.Has<EffectRegistry>() ? _services.Get<EffectRegistry>() : null;
+            var cardRegistry = _services.Has<CardRegistry>() ? _services.Get<CardRegistry>() : null;
+            _effectProcessor = new EffectProcessor(effectRegistry, cardRegistry);
+            _powerResolver = new PowerResolver(perkRegistry, _effectProcessor);
             _progressionManager = _services.Get<ProgressionManager>();
             _runState = _services.Get<RunState>();
 
             BuildBoard();
+            _boardState.PowerResolver = _powerResolver;
             BuildAvatars();
             BuildDropZones();
             SetupDecks();
@@ -134,12 +140,13 @@ namespace SnapClone.Scenes
             _pileManager = new CardPileManager(_boardState, _runState);
             _lastSyncedVersion = _boardState.Version;
 
-            _turnManager = new TurnManager(_boardState, _services.Get<TimeService>(), _powerResolver);
+            _turnManager = new TurnManager(_boardState, _services.Get<TimeService>(), _powerResolver, _effectProcessor);
             _aiController = new AIController(_boardState, _services.Get<RandomService>());
 
             _turnManager.StartTurn();
             RefreshHandViews();
             PlayAIAll();
+            RefreshPowerTotals();
 
             _layoutManager.CalculateLayout();
             UpdateViewLayout();
@@ -174,7 +181,7 @@ namespace SnapClone.Scenes
                     };
                 }
 
-                _boardState.Zones.Add(new ZoneInstance(def, i));
+                _boardState.Zones.Add(new ZoneInstance(def, i) { Board = _boardState });
 
                 _locations.Add(new LocationView
                 {
@@ -235,10 +242,7 @@ namespace SnapClone.Scenes
                 {
                     // Normaliza el estado de combate anterior y re-resuelve el
                     // poder desde la base mas los perks.
-                    card.IsInPlay = false;
-                    card.PlayedTurn = 0;
-                    card.PlayOrderIndex = 0;
-                    card.Location = CardLocation.Deck;
+                    card.ResetForCombat();
                     _powerResolver.ResolveCard(card);
 
                     _boardState.PlayerDeck.Add(card);
@@ -278,21 +282,25 @@ namespace SnapClone.Scenes
 
         private void DealStartingHands()
         {
-            for (int i = 0; i < StartingHandSize; i++)
-            {
-                DrawFromDeck(_boardState.PlayerDeck, _boardState.PlayerHand);
-                DrawFromDeck(_boardState.AIDeck, _boardState.AIHand);
-            }
+            OpeningHandDealer.Deal(_boardState.PlayerDeck, _boardState.PlayerHand, StartingHandSize);
+            OpeningHandDealer.Deal(_boardState.AIDeck, _boardState.AIHand, StartingHandSize);
         }
 
-        private static void DrawFromDeck(List<CardInstance> deck, List<CardInstance> hand)
+        /// <summary>
+        /// Unica escritura de los totales de las placas. Recalcula el poder de
+        /// todas las cartas y copia el total de cada zona a su LocationView.
+        /// </summary>
+        private void RefreshPowerTotals()
         {
-            if (deck.Count == 0) return;
+            if (_boardState == null || _powerResolver == null) return;
 
-            var card = deck[0];
-            deck.RemoveAt(0);
-            hand.Add(card);
-            card.Location = CardLocation.Hand;
+            _powerResolver.UpdateAllPowers(_boardState);
+
+            for (int i = 0; i < _locations.Count && i < _boardState.Zones.Count; i++)
+            {
+                var zone = _boardState.Zones[i];
+                _locations[i].SetPower(zone.GetPlayerPower(), zone.GetAIPower());
+            }
         }
 
         private void RefreshHandViews()
@@ -383,9 +391,9 @@ namespace SnapClone.Scenes
             {
                 SyncSlotViews(_locations[i], BoardSide.Player);
                 SyncSlotViews(_locations[i], BoardSide.AI);
-                _locations[i].RecalculatePower();
             }
 
+            RefreshPowerTotals();
             UpdateHandPositions();
             CancelVanishedDrag();
         }
@@ -858,6 +866,13 @@ namespace SnapClone.Scenes
         {
             if (view?.Card == null) return;
 
+            // Una carta del tablero solo se puede levantar durante el turno en
+            // que se jugo. Las de turnos anteriores quedan bloqueadas en su
+            // slot: no van a la mano ni cambian de zona.
+            if (origin == CardOrigin.Board &&
+                view.Card.PlayedTurn != _turnManager.CurrentTurn)
+                return;
+
             view.Origin = origin;
             view.OriginZone = zone;
             view.OriginSlot = slot;
@@ -899,7 +914,7 @@ namespace SnapClone.Scenes
             _dropZones[zone * LocationView.SlotsPerSide + slot].OccupiedBy = null;
             _boardState.Zones[zone].PlayerCards.Remove(view.Card);
             view.IsInZone = false;
-            location.RecalculatePower();
+            RefreshPowerTotals();
             return true;
         }
 
@@ -947,14 +962,23 @@ namespace SnapClone.Scenes
 
         private void AddToHand(CardView view)
         {
+            // Defensa: BeginDrag ya impide levantar una carta de un turno
+            // anterior. Si otra ruta intentara devolverla a la mano, se
+            // conserva en su slot de origen.
+            if (view.Origin == CardOrigin.Board &&
+                view.Card.PlayedTurn != _turnManager.CurrentTurn)
+            {
+                PlaceInSlot(view.OriginZone, view.OriginSlot, view);
+                return;
+            }
+
             view.EndDrag();
             view.IsInZone = false;
             view.Origin = CardOrigin.Hand;
             view.OriginZone = -1;
             view.OriginSlot = -1;
             view.Card.IsInPlay = false;
-            view.Card.PlayedTurn = 0;
-            view.Card.PlayOrderIndex = 0;
+            view.Card.ClearPlayState();
             view.Card.Location = CardLocation.Hand;
 
             if (!_boardState.PlayerHand.Contains(view.Card))
@@ -962,6 +986,8 @@ namespace SnapClone.Scenes
 
             if (!_handViews.Contains(view))
                 _handViews.Add(view);
+
+            RefreshPowerTotals();
         }
 
         private bool PlaceInSlot(int zone, int slot, CardView view)
@@ -999,14 +1025,15 @@ namespace SnapClone.Scenes
             view.Card.IsInPlay = true;
             view.Card.Location = CardLocation.Board;
 
-            // Al mover una carta ya jugada se conserva su orden original.
+            // Al mover una carta ya jugada se conserva su orden y su zona original.
             if (cameFromHand)
             {
                 view.Card.PlayedTurn = _turnManager.CurrentTurn;
                 view.Card.PlayOrderIndex = _boardState.NextPlayOrder++;
+                view.Card.PlayedZoneIndex = zone;
             }
 
-            location.RecalculatePower();
+            RefreshPowerTotals();
             return true;
         }
 
@@ -1107,6 +1134,7 @@ namespace SnapClone.Scenes
 
             CancelDragToHand();
             _turnManager.EndTurn();
+            RefreshPowerTotals();
 
             if (_turnManager.IsMatchOver)
             {
@@ -1117,6 +1145,7 @@ namespace SnapClone.Scenes
             _turnManager.StartTurn();
             RefreshHandViews();
             PlayAIAll();
+            RefreshPowerTotals();
             UpdateViewLayout();
         }
 
@@ -1143,7 +1172,7 @@ namespace SnapClone.Scenes
                 };
 
                 location.OpponentSlotCards[slot] = view;
-                location.RecalculatePower();
+                RefreshPowerTotals();
             }
         }
 
@@ -1155,6 +1184,8 @@ namespace SnapClone.Scenes
             // Un combate puede terminar antes del turno 3. El resultado se
             // calcula con informacion completa, asi que se revela lo que falte.
             _turnManager.RevealAllZones();
+
+            RefreshPowerTotals();
 
             string result = _victoryResolver.Evaluate(_boardState);
             _matchResult = result;
