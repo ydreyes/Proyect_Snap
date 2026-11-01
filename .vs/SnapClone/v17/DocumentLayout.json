@@ -1,0 +1,197 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|c:\\users\\yandri.reyes.integritysoluti\\source\\repos\\snapclone\\snapclone\\ui\\components\\fontservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|solutionrelative:snapclone\\ui\\components\\fontservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|c:\\users\\yandri.reyes.integritysoluti\\source\\repos\\snapclone\\snapclone\\ui\\components\\dropzone.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|solutionrelative:snapclone\\ui\\components\\dropzone.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|c:\\users\\yandri.reyes.integritysoluti\\source\\repos\\snapclone\\snapclone\\ui\\components\\cardview.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|solutionrelative:snapclone\\ui\\components\\cardview.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|c:\\users\\yandri.reyes.integritysoluti\\source\\repos\\snapclone\\snapclone\\gameplay\\cards\\cardinstance.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|solutionrelative:snapclone\\gameplay\\cards\\cardinstance.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|c:\\users\\yandri.reyes.integritysoluti\\source\\repos\\snapclone\\snapclone\\scenes\\rewardscene.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|solutionrelative:snapclone\\scenes\\rewardscene.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|c:\\users\\yandri.reyes.integritysoluti\\source\\repos\\snapclone\\snapclone\\scenes\\draftscene.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|solutionrelative:snapclone\\scenes\\draftscene.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|c:\\users\\yandri.reyes.integritysoluti\\source\\repos\\snapclone\\snapclone\\scenes\\combatscene.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|solutionrelative:snapclone\\scenes\\combatscene.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|c:\\users\\yandri.reyes.integritysoluti\\source\\repos\\snapclone\\snapclone\\game1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|solutionrelative:snapclone\\game1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|c:\\users\\yandri.reyes.integritysoluti\\source\\repos\\snapclone\\snapclone\\data\\content\\contentloader.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|solutionrelative:snapclone\\data\\content\\contentloader.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|c:\\users\\yandri.reyes.integritysoluti\\source\\repos\\snapclone\\snapclone\\core\\layout\\layoutmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|solutionrelative:snapclone\\core\\layout\\layoutmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|c:\\users\\yandri.reyes.integritysoluti\\source\\repos\\snapclone\\snapclone\\ui\\primitives\\shapedrawer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{106B45C8-361A-41EF-B09B-26F287DDBFB8}|SnapClone\\SnapClone.csproj|solutionrelative:snapclone\\ui\\primitives\\shapedrawer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "FontService.cs",
+              "DocumentMoniker": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\UI\\Components\\FontService.cs",
+              "RelativeDocumentMoniker": "SnapClone\\UI\\Components\\FontService.cs",
+              "ToolTip": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\UI\\Components\\FontService.cs",
+              "RelativeToolTip": "SnapClone\\UI\\Components\\FontService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-27T22:30:46.81Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "DropZone.cs",
+              "DocumentMoniker": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\UI\\Components\\DropZone.cs",
+              "RelativeDocumentMoniker": "SnapClone\\UI\\Components\\DropZone.cs",
+              "ToolTip": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\UI\\Components\\DropZone.cs",
+              "RelativeToolTip": "SnapClone\\UI\\Components\\DropZone.cs",
+              "ViewState": "AgIAAAwAAAAAAAAAAAAowAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-27T22:30:42.952Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "CardView.cs",
+              "DocumentMoniker": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\UI\\Components\\CardView.cs",
+              "RelativeDocumentMoniker": "SnapClone\\UI\\Components\\CardView.cs",
+              "ToolTip": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\UI\\Components\\CardView.cs",
+              "RelativeToolTip": "SnapClone\\UI\\Components\\CardView.cs",
+              "ViewState": "AgIAAFQAAAAAAAAAAAAAAGMAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-27T22:30:07.564Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "RewardScene.cs",
+              "DocumentMoniker": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\Scenes\\RewardScene.cs",
+              "RelativeDocumentMoniker": "SnapClone\\Scenes\\RewardScene.cs",
+              "ToolTip": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\Scenes\\RewardScene.cs",
+              "RelativeToolTip": "SnapClone\\Scenes\\RewardScene.cs",
+              "ViewState": "AgIAADAAAAAAAAAAAAAmwGUAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-27T22:06:48.338Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "DraftScene.cs",
+              "DocumentMoniker": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\Scenes\\DraftScene.cs",
+              "RelativeDocumentMoniker": "SnapClone\\Scenes\\DraftScene.cs",
+              "ToolTip": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\Scenes\\DraftScene.cs",
+              "RelativeToolTip": "SnapClone\\Scenes\\DraftScene.cs",
+              "ViewState": "AgIAAFsAAAAAAAAAAAAwwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-27T22:06:44.142Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "CombatScene.cs",
+              "DocumentMoniker": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\Scenes\\CombatScene.cs",
+              "RelativeDocumentMoniker": "SnapClone\\Scenes\\CombatScene.cs",
+              "ToolTip": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\Scenes\\CombatScene.cs",
+              "RelativeToolTip": "SnapClone\\Scenes\\CombatScene.cs",
+              "ViewState": "AgIAANkCAAAAAAAAAAAAAL8CAAAkAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-27T22:05:45.944Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "ContentLoader.cs",
+              "DocumentMoniker": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\Data\\Content\\ContentLoader.cs",
+              "RelativeDocumentMoniker": "SnapClone\\Data\\Content\\ContentLoader.cs",
+              "ToolTip": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\Data\\Content\\ContentLoader.cs",
+              "RelativeToolTip": "SnapClone\\Data\\Content\\ContentLoader.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAD8AAAAJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-27T21:57:32.497Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "LayoutManager.cs",
+              "DocumentMoniker": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\Core\\Layout\\LayoutManager.cs",
+              "RelativeDocumentMoniker": "SnapClone\\Core\\Layout\\LayoutManager.cs",
+              "ToolTip": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\Core\\Layout\\LayoutManager.cs",
+              "RelativeToolTip": "SnapClone\\Core\\Layout\\LayoutManager.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-27T21:57:25.472Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "CardInstance.cs",
+              "DocumentMoniker": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\Gameplay\\Cards\\CardInstance.cs",
+              "RelativeDocumentMoniker": "SnapClone\\Gameplay\\Cards\\CardInstance.cs",
+              "ToolTip": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\Gameplay\\Cards\\CardInstance.cs",
+              "RelativeToolTip": "SnapClone\\Gameplay\\Cards\\CardInstance.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAAYAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-27T21:57:17.711Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "ShapeDrawer.cs",
+              "DocumentMoniker": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\UI\\Primitives\\ShapeDrawer.cs",
+              "RelativeDocumentMoniker": "SnapClone\\UI\\Primitives\\ShapeDrawer.cs",
+              "ToolTip": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\UI\\Primitives\\ShapeDrawer.cs",
+              "RelativeToolTip": "SnapClone\\UI\\Primitives\\ShapeDrawer.cs",
+              "ViewState": "AgIAAAUAAAAAAAAAAAAowBIAAAA4AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-27T16:14:16.628Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "Game1.cs",
+              "DocumentMoniker": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\Game1.cs",
+              "RelativeDocumentMoniker": "SnapClone\\Game1.cs",
+              "ToolTip": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone\\Game1.cs",
+              "RelativeToolTip": "SnapClone\\Game1.cs",
+              "ViewState": "AgIAAHIAAAAAAAAAAAAowF4AAAAvAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-10-25T21:55:37.087Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
