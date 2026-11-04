@@ -21,6 +21,19 @@ namespace SnapClone.Data.Registries
         {
             return new List<CardDef>(_cards.Values);
         }
+
+        /// <summary>Solo definiciones que pueden ofrecerse en draft y recompensas.</summary>
+        public List<CardDef> GetDraftable()
+        {
+            var draftable = new List<CardDef>();
+            foreach (var card in _cards.Values)
+            {
+                if (!card.IsToken)
+                    draftable.Add(card);
+            }
+
+            return draftable;
+        }
     }
     
     public class ZoneRegistry

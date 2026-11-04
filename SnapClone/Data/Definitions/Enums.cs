@@ -15,7 +15,13 @@ namespace SnapClone.Data.Definitions
         EndOfTurn,
         Activate,
         ZoneContinuous,
-        ZoneOnTrigger
+        ZoneOnTrigger,
+        AfterPlayed,
+        AfterMoved,
+        AfterDestroyed,
+        AfterDiscarded,
+        AfterDrawn,
+        GameStart
     }
     
     public enum Targeting

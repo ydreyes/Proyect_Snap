@@ -1,58 +1,53 @@
 using System.Collections.Generic;
 using SnapClone.Core.Services;
+using SnapClone.Gameplay.Actions;
 using SnapClone.Gameplay.Board;
-using SnapClone.Gameplay.Cards;
+using SnapClone.Gameplay.Combat;
 
 namespace SnapClone.Gameplay.AI
 {
     /// <summary>
-    /// Aplica las decisiones de la IA al tablero. No conoce tipos de UI: la
-    /// escena se encarga de crear la vista de cada carta jugada.
+    /// Aplica las decisiones de la IA al tablero a traves de la misma autoridad
+    /// de acciones que el jugador. No conoce tipos de UI.
     /// </summary>
     public class AIController
     {
         private readonly AIStrategy _strategy;
         private readonly BoardState _boardState;
+        private readonly CardActionService _actionService;
 
-        public AIController(BoardState boardState, RandomService randomService)
+        public AIController(BoardState boardState, RandomService randomService,
+            CardActionService actionService, TurnManager turnManager)
         {
             _boardState = boardState;
-            _strategy = new AIStrategy(randomService);
+            _actionService = actionService;
+            _strategy = new AIStrategy(randomService, turnManager);
         }
 
-        public (CardInstance card, ZoneInstance zone, int slot)? TryPlayOne()
+        public PlayResult TryPlayOne()
         {
             var decision = _strategy.MakeDecision(_boardState);
             if (decision == null) return null;
 
             var (card, zone, slot) = decision.Value;
-            if (zone.AICards.Count >= ZoneInstance.MaxCardsPerSide) return null;
-
-            zone.AICards.Add(card);
-            card.PlayedTurn = _boardState.CurrentTurn;
-            card.PlayOrderIndex = _boardState.NextPlayOrder++;
-            card.PlayedZoneIndex = zone.ZoneIndex;
-            card.IsInPlay = true;
-            card.Location = CardLocation.Board;
-            _boardState.AIHand.Remove(card);
-
-            return (card, zone, slot);
+            var result = _actionService.PlayCard(card, BoardSide.AI, zone.ZoneIndex, slot);
+            return result.Success ? result : null;
         }
 
         /// <summary>
         /// Juega mientras quede una carta pagable y un slot libre. Devuelve
-        /// todas las jugadas para que la escena les asigne una vista.
+        /// las jugadas para que la escena les asigne una vista.
         /// </summary>
-        public List<(CardInstance card, ZoneInstance zone, int slot)> TryPlayAll()
+        public List<PlayResult> TryPlayAll()
         {
-            var plays = new List<(CardInstance card, ZoneInstance zone, int slot)>();
+            var plays = new List<PlayResult>();
 
             while (true)
             {
                 var play = TryPlayOne();
                 if (play == null) break;
 
-                plays.Add(play.Value);
+                plays.Add(play);
             }
 
             return plays;

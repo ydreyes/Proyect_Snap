@@ -48,7 +48,7 @@ namespace SnapClone.Gameplay.Draft
                 return choices;
 
             List<CardDef> pool = new List<CardDef>();
-            foreach (var def in _cardRegistry.GetAll())
+            foreach (var def in _cardRegistry.GetDraftable())
             {
                 if (GetCopyCount(def.Id) < MaxCopies)
                     pool.Add(def);

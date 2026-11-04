@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SnapClone")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4caf4cc00dab475985452b4b5050ef5d8267eda4")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9ede8a61caaeccd318af5ae9634fedf4c47dc91b")]
 [assembly: System.Reflection.AssemblyProductAttribute("SnapClone")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SnapClone")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

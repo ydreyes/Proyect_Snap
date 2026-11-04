@@ -19,7 +19,8 @@ namespace SnapClone.Gameplay.Cards
         Board,
         Discard,
         Destroyed,
-        Banished
+        Banished,
+        Merged
     }
 
     public static class PileKindExtensions

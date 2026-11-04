@@ -5,11 +5,13 @@ namespace SnapClone.Gameplay.Combat
 {
     /// <summary>
     /// Reparte la mano inicial. Primero mueve todas las cartas etiquetadas
-    /// para empezar en la mano y despues completa con el resto del mazo.
+    /// para empezar en la mano y despues completa con el resto del mazo,
+    /// saltando las cartas que se roban obligatoriamente en el turno 2.
     /// </summary>
     public static class OpeningHandDealer
     {
         public const string StartsInHandTag = "starts_in_hand";
+        public const string ForcedTurn2Tag = "forced_turn_2_draw";
 
         public static void Deal(List<CardInstance> deck, List<CardInstance> hand, int size)
         {
@@ -25,19 +27,29 @@ namespace SnapClone.Gameplay.Combat
                 card.Location = CardLocation.Hand;
             }
 
-            while (hand.Count < size && deck.Count > 0)
+            int index = 0;
+            while (hand.Count < size && index < deck.Count)
             {
-                var card = deck[0];
-                deck.RemoveAt(0);
+                var card = deck[index];
+                if (IsForcedTurn2(card))
+                {
+                    index++;
+                    continue;
+                }
+
+                deck.RemoveAt(index);
                 hand.Add(card);
                 card.Location = CardLocation.Hand;
             }
         }
 
-        private static bool StartsInHand(CardInstance card)
-        {
-            return card?.Definition?.Tags != null &&
-                card.Definition.Tags.Contains(StartsInHandTag);
-        }
+        public static bool StartsInHand(CardInstance card) =>
+            HasTag(card, StartsInHandTag);
+
+        public static bool IsForcedTurn2(CardInstance card) =>
+            HasTag(card, ForcedTurn2Tag);
+
+        private static bool HasTag(CardInstance card, string tag) =>
+            card?.Definition?.Tags != null && card.Definition.Tags.Contains(tag);
     }
 }

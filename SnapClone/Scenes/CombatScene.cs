@@ -7,6 +7,7 @@ using SnapClone.Core.Services;
 using SnapClone.Core.Layout;
 using SnapClone.Data.Registries;
 using SnapClone.Effects;
+using SnapClone.Gameplay.Actions;
 using SnapClone.Gameplay.AI;
 using SnapClone.Gameplay.Board;
 using SnapClone.Gameplay.Cards;
@@ -52,7 +53,7 @@ namespace SnapClone.Scenes
         private readonly List<DropZone> _dropZones = new List<DropZone>();
         private AvatarView _playerAvatar;
         private AvatarView _rivalAvatar;
-        private CardPileManager _pileManager;
+        private CardActionService _actionService;
         private int _lastSyncedVersion;
         private PileViewerView _pileViewer;
         private DetailPreviewView _detailPreview;
@@ -124,7 +125,9 @@ namespace SnapClone.Scenes
             var perkRegistry = _services.Has<PerkRegistry>() ? _services.Get<PerkRegistry>() : null;
             var effectRegistry = _services.Has<EffectRegistry>() ? _services.Get<EffectRegistry>() : null;
             var cardRegistry = _services.Has<CardRegistry>() ? _services.Get<CardRegistry>() : null;
-            _effectProcessor = new EffectProcessor(effectRegistry, cardRegistry);
+            var zoneRegistry = _services.Has<ZoneRegistry>() ? _services.Get<ZoneRegistry>() : null;
+            _effectProcessor = new EffectProcessor(effectRegistry, cardRegistry,
+                _services.Get<RandomService>());
             _powerResolver = new PowerResolver(perkRegistry, _effectProcessor);
             _progressionManager = _services.Get<ProgressionManager>();
             _runState = _services.Get<RunState>();
@@ -137,12 +140,16 @@ namespace SnapClone.Scenes
             DealStartingHands();
 
             // Puerta unica para mover cartas a las pilas del combate actual.
-            _pileManager = new CardPileManager(_boardState, _runState);
+            var pileManager = new CardPileManager(_boardState, _runState);
+            _actionService = new CardActionService(_boardState, pileManager, _powerResolver,
+                _effectProcessor, _runState, zoneRegistry);
             _lastSyncedVersion = _boardState.Version;
 
             _turnManager = new TurnManager(_boardState, _services.Get<TimeService>(), _powerResolver, _effectProcessor);
-            _aiController = new AIController(_boardState, _services.Get<RandomService>());
+            _aiController = new AIController(_boardState, _services.Get<RandomService>(),
+                _actionService, _turnManager);
 
+            _actionService.StartCombat();
             _turnManager.StartTurn();
             RefreshHandViews();
             PlayAIAll();
@@ -260,6 +267,8 @@ namespace SnapClone.Scenes
                 }
             }
 
+            ShuffleDeck(_boardState.PlayerDeck, _services.Get<RandomService>());
+
             var rivalDefs = GetCardDefinitions();
             var random = _services.Get<RandomService>();
             for (int i = 0; i < RivalDeckSize && rivalDefs.Count > 0; i++)
@@ -274,11 +283,24 @@ namespace SnapClone.Scenes
         private List<Data.Definitions.CardDef> GetCardDefinitions()
         {
             return _services.Has<CardRegistry>()
-                ? _services.Get<CardRegistry>().GetAll()
+                ? _services.Get<CardRegistry>().GetDraftable()
                 : new List<Data.Definitions.CardDef>();
         }
 
         private int RandomIndex(int count) => _services.Get<RandomService>().Next(count);
+
+        private static void ShuffleDeck(List<CardInstance> deck, RandomService random)
+        {
+            if (deck == null || random == null) return;
+
+            for (int i = deck.Count - 1; i > 0; i--)
+            {
+                int j = random.Next(i + 1);
+                var tmp = deck[i];
+                deck[i] = deck[j];
+                deck[j] = tmp;
+            }
+        }
 
         private void DealStartingHands()
         {
@@ -324,9 +346,16 @@ namespace SnapClone.Scenes
             {
                 var location = _locations[i];
                 location.Panel = _layoutManager.GetLocationPanel(i);
-                location.IsRevealed = _boardState != null &&
-                    i < _boardState.Zones.Count &&
-                    _boardState.Zones[i].IsRevealed;
+
+                if (_boardState != null && i < _boardState.Zones.Count)
+                {
+                    var zone = _boardState.Zones[i];
+                    location.Name = zone.Definition != null ? zone.Definition.Name : "LOCACION";
+                    location.EffectText = zone.Definition != null
+                        ? zone.Definition.Description
+                        : string.Empty;
+                    location.IsRevealed = zone.IsVisibleTo(BoardSide.Player);
+                }
 
                 for (int slot = 0; slot < LocationView.SlotsPerSide; slot++)
                 {
@@ -409,6 +438,11 @@ namespace SnapClone.Scenes
 
             foreach (var card in _boardState.PlayerHand)
             {
+                // La carta que se esta arrastrando sigue en el modelo de la
+                // mano, pero su vista no debe reaparecer hasta que se suelte.
+                if (_draggedCard != null && ReferenceEquals(_draggedCard.Card, card))
+                    continue;
+
                 if (HasHandView(card)) continue;
                 _handViews.Add(new CardView(card, Vector2.Zero) { Origin = CardOrigin.Hand });
             }
@@ -508,9 +542,6 @@ namespace SnapClone.Scenes
             _draggedCard = null;
             _hoverZone = -1;
             _hoverSlot = -1;
-
-            if (_turnManager != null)
-                _turnManager.ReleaseReservation();
 
             var input = _services.Get<InputService>();
             input.IsDragging = false;
@@ -879,17 +910,13 @@ namespace SnapClone.Scenes
 
             if (origin == CardOrigin.Hand)
             {
-                _boardState.PlayerHand.Remove(view.Card);
+                // El modelo conserva la carta en la mano hasta que se suelta;
+                // solo se retira la vista para que no se dibuje dos veces.
                 _handViews.Remove(view);
             }
             else
             {
                 if (!LiftFromSlot(zone, slot, view)) return;
-
-                // Reserva el coste mientras la carta esta en el aire para que
-                // no se pueda gastar la energia que ya tenia comprometida.
-                if (view.Card.PlayedTurn == _turnManager.CurrentTurn)
-                    _turnManager.ReserveEnergy(view.Card.Definition.Cost);
             }
 
             view.IsDragging = true;
@@ -910,9 +937,11 @@ namespace SnapClone.Scenes
             var location = _locations[zone];
             if (location.PlayerSlotCards[slot] != view) return false;
 
+            var lift = _actionService.LiftCard(view.Card, BoardSide.Player);
+            if (!lift.Success) return false;
+
             location.PlayerSlotCards[slot] = null;
             _dropZones[zone * LocationView.SlotsPerSide + slot].OccupiedBy = null;
-            _boardState.Zones[zone].PlayerCards.Remove(view.Card);
             view.IsInZone = false;
             RefreshPowerTotals();
             return true;
@@ -953,9 +982,6 @@ namespace SnapClone.Scenes
             _hoverZone = -1;
             _hoverSlot = -1;
 
-            if (_turnManager != null)
-                _turnManager.ReleaseReservation();
-
             input.IsDragging = false;
             input.DraggedCard = null;
         }
@@ -972,17 +998,19 @@ namespace SnapClone.Scenes
                 return;
             }
 
+            var returned = _actionService.ReturnToHand(view.Card, BoardSide.Player);
+            if (!returned.Success)
+            {
+                if (view.Origin == CardOrigin.Board)
+                    PlaceInSlot(view.OriginZone, view.OriginSlot, view);
+                return;
+            }
+
             view.EndDrag();
             view.IsInZone = false;
             view.Origin = CardOrigin.Hand;
             view.OriginZone = -1;
             view.OriginSlot = -1;
-            view.Card.IsInPlay = false;
-            view.Card.ClearPlayState();
-            view.Card.Location = CardLocation.Hand;
-
-            if (!_boardState.PlayerHand.Contains(view.Card))
-                _boardState.PlayerHand.Add(view.Card);
 
             if (!_handViews.Contains(view))
                 _handViews.Add(view);
@@ -1004,8 +1032,18 @@ namespace SnapClone.Scenes
 
             bool cameFromHand = view.Origin == CardOrigin.Hand;
 
-            if (cameFromHand && view.Card.Definition.Cost > _turnManager.AvailableEnergy)
+            if (cameFromHand &&
+                view.Card.Definition.Cost > _turnManager.PlayerAvailableEnergy)
                 return false;
+
+            ActionResult action;
+            if (cameFromHand)
+                action = _actionService.PlayCard(view.Card, BoardSide.Player, zone, slot);
+            else
+                action = _actionService.MoveCard(view.Card, BoardSide.Player,
+                    view.OriginZone, zone);
+
+            if (!action.Success) return false;
 
             var bounds = location.PlayerSlots[slot];
 
@@ -1018,20 +1056,6 @@ namespace SnapClone.Scenes
             view.Origin = CardOrigin.Board;
             view.OriginZone = zone;
             view.OriginSlot = slot;
-
-            if (!zoneInstance.PlayerCards.Contains(view.Card))
-                zoneInstance.PlayerCards.Add(view.Card);
-
-            view.Card.IsInPlay = true;
-            view.Card.Location = CardLocation.Board;
-
-            // Al mover una carta ya jugada se conserva su orden y su zona original.
-            if (cameFromHand)
-            {
-                view.Card.PlayedTurn = _turnManager.CurrentTurn;
-                view.Card.PlayOrderIndex = _boardState.NextPlayOrder++;
-                view.Card.PlayedZoneIndex = zone;
-            }
 
             RefreshPowerTotals();
             return true;
@@ -1157,16 +1181,24 @@ namespace SnapClone.Scenes
         {
             foreach (var play in _aiController.TryPlayAll())
             {
-                var (card, zone, slot) = play;
-                if (zone.ZoneIndex < 0 || zone.ZoneIndex >= _locations.Count) continue;
+                if (play.Card == null) continue;
+                if (play.ZoneIndex < 0 || play.ZoneIndex >= _locations.Count) continue;
 
-                var location = _locations[zone.ZoneIndex];
-                if (slot < 0 || slot >= LocationView.SlotsPerSide) continue;
+                var location = _locations[play.ZoneIndex];
+                int slot = play.Slot;
 
-                var view = new CardView(card, Vector2.Zero)
+                if (slot < 0 || slot >= LocationView.SlotsPerSide ||
+                    location.OpponentSlotCards[slot] != null)
+                {
+                    slot = FirstFreeSlot(location.OpponentSlotCards);
+                }
+
+                if (slot < 0) continue;
+
+                var view = new CardView(play.Card, Vector2.Zero)
                 {
                     Origin = CardOrigin.Board,
-                    OriginZone = zone.ZoneIndex,
+                    OriginZone = play.ZoneIndex,
                     OriginSlot = slot,
                     IsInZone = true
                 };
@@ -1335,7 +1367,7 @@ namespace SnapClone.Scenes
             _shapeDrawer.DrawHexagonFramed(center, radius,
                 new Color(40, 92, 180), new Color(168, 204, 255), 3f, false);
             _fontService.DrawTextCentered(spriteBatch,
-                _turnManager.AvailableEnergy.ToString(), center, Color.White, 1.0f);
+                _turnManager.PlayerAvailableEnergy.ToString(), center, Color.White, 1.0f);
 
             var button = _layoutManager.EndTurnButton;
             bool enabled = _turnManager.CurrentPhase == TurnPhase.PlayPhase && !_gameEvaluated;
@@ -1362,7 +1394,7 @@ namespace SnapClone.Scenes
             {
                 if (!view.IsDragging)
                 {
-                    view.IsAffordable = view.Card.Definition.Cost <= _turnManager.AvailableEnergy;
+                    view.IsAffordable = view.Card.Definition.Cost <= _turnManager.PlayerAvailableEnergy;
                     DrawHandCard(spriteBatch, view);
                 }
             }
@@ -1377,7 +1409,7 @@ namespace SnapClone.Scenes
                 (int)view.Size.Y);
 
             if (view.Origin == CardOrigin.Hand)
-                view.IsAffordable = view.Card.Definition.Cost <= _turnManager.AvailableEnergy;
+                view.IsAffordable = view.Card.Definition.Cost <= _turnManager.PlayerAvailableEnergy;
 
             view.DrawInHand(spriteBatch, _shapeDrawer, _fontService, bounds);
 

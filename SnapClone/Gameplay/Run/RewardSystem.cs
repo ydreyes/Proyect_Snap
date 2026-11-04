@@ -33,7 +33,7 @@ namespace SnapClone.Gameplay.Run
             var offers = new List<(CardInstance card, string perkId)>();
             var candidates = new List<CardDef>();
 
-            foreach (var def in _cardRegistry.GetAll())
+            foreach (var def in _cardRegistry.GetDraftable())
             {
                 if (CountInDeck(runState, def.Id) < MaxCopiesPerCard)
                     candidates.Add(def);

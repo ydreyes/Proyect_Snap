@@ -37,7 +37,10 @@ namespace SnapClone.Gameplay.Combat
                 card.BonusPower;
 
             if (_effectProcessor != null && zone != null)
+            {
                 power += _effectProcessor.GetCardPowerBonus(card, zone, boardState, owner);
+                power += _effectProcessor.GetZoneCardPowerBonus(zone, card, owner);
+            }
 
             return power;
         }
@@ -62,10 +65,14 @@ namespace SnapClone.Gameplay.Combat
                 total += CalculateCardPower(card, zone, zone.Board, side);
 
             int multiplier = 1;
+            int addition = 0;
             if (_effectProcessor != null && zone.Board != null)
+            {
                 multiplier = _effectProcessor.GetZoneMultiplier(zone, side, zone.Board);
+                addition = _effectProcessor.GetZoneAddition(zone, side, zone.Board);
+            }
 
-            return total * multiplier;
+            return total * multiplier + addition;
         }
 
         /// <summary>Recalcula y escribe el poder de una carta fuera de una zona.</summary>

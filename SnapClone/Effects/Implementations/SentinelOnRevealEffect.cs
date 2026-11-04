@@ -5,7 +5,7 @@ namespace SnapClone.Effects.Implementations
 {
     /// <summary>
     /// Sentinel: al revelarse crea una nueva instancia de Sentinel en la mano
-    /// de su duenio. No hay limite de tamano de mano para esta adicion.
+    /// de su duenio, si la mano tiene espacio.
     /// </summary>
     public class SentinelOnRevealEffect : CardEffectBase
     {
@@ -23,6 +23,8 @@ namespace SnapClone.Effects.Implementations
             var hand = context.Owner == BoardSide.Player
                 ? context.BoardState.PlayerHand
                 : context.BoardState.AIHand;
+
+            if (hand.Count >= BoardState.MaxHandSize) return;
 
             hand.Add(copy);
         }

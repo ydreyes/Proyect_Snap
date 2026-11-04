@@ -166,14 +166,16 @@ namespace SnapClone.UI.Components
 
             shapes.DrawVerticalGradient(art, new Color(30, 40, 62), new Color(12, 16, 28), 16);
 
-            if (Zone.IsRevealed)
+            bool visible = Zone.IsVisibleTo(BoardSide.Player);
+
+            if (visible)
                 LocationView.DrawLocationArt(shapes, art, Zone.ZoneIndex, 1f);
 
             int nameTop = art.Bottom + pad;
             int nameHeight = Math.Max(24, (int)(contentHeight * 0.10f));
             var nameRect = new Rectangle(panel.X + pad, nameTop, panel.Width - pad * 2, nameHeight);
 
-            if (Zone.IsRevealed)
+            if (visible)
             {
                 fonts.DrawTextCenteredFit(spriteBatch,
                     Zone.Definition != null ? Zone.Definition.Name : "LOCACION",
@@ -197,7 +199,7 @@ namespace SnapClone.UI.Components
             string effectText;
             Color effectColor;
 
-            if (Zone.IsRevealed)
+            if (visible)
             {
                 effectText = Zone.Definition != null ? Zone.Definition.Description : string.Empty;
                 effectColor = new Color(214, 222, 236);

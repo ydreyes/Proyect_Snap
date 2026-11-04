@@ -27,7 +27,8 @@ namespace SnapClone.Gameplay.Board
 
         public BoardState BoardState => _boardState;
 
-        public bool Move(CardInstance card, BoardSide side, PileKind pile)
+        public bool Move(CardInstance card, BoardSide side, PileKind pile,
+            bool combatScoped = false)
         {
             if (card == null || _boardState == null) return false;
             if (IsInPile(card)) return false;
@@ -44,14 +45,17 @@ namespace SnapClone.Gameplay.Board
             RemoveFromZones(card, side);
 
             card.IsInPlay = false;
-            card.PlayedTurn = 0;
-            card.PlayOrderIndex = 0;
+
+            // Limpia jugada y efectos pendientes, pero conserva BonusPower,
+            // perks y la marca de reveal del combate.
+            card.ClearPlayState();
 
             if (!_boardState.GetPiles(side).Add(card, pile)) return false;
 
             card.Location = pile.ToLocation();
 
-            if (pile == PileKind.Banished && side == BoardSide.Player && _runState != null)
+            if (pile == PileKind.Banished && !combatScoped &&
+                side == BoardSide.Player && _runState != null)
                 _runState.Deck.Remove(card);
 
             _boardState.Version++;

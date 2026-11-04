@@ -11,6 +11,28 @@ namespace SnapClone.Data.Definitions
         public string Description { get; set; }
         public List<string> EffectIds { get; set; } = new List<string>();
         public List<string> Tags { get; set; } = new List<string>();
+
+        /// <summary>Los tokens no entran al draft ni a las recompensas.</summary>
+        public bool IsToken { get; set; }
+
+        public bool HasTag(string tag) =>
+            Tags != null && Tags.Contains(tag);
+
+        /// <summary>Copia independiente para transformaciones y copias de carta.</summary>
+        public CardDef Clone()
+        {
+            return new CardDef
+            {
+                Id = Id,
+                Name = Name,
+                Cost = Cost,
+                BasePower = BasePower,
+                Description = Description,
+                IsToken = IsToken,
+                EffectIds = new List<string>(EffectIds ?? new List<string>()),
+                Tags = new List<string>(Tags ?? new List<string>())
+            };
+        }
     }
     
     public class ZoneDef

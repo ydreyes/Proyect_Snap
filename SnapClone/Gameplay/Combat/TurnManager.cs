@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SnapClone.Effects;
+using SnapClone.Gameplay.Actions;
 using SnapClone.Gameplay.Board;
 using SnapClone.Gameplay.Cards;
 using SnapClone.Core.Services;
@@ -9,7 +10,7 @@ namespace SnapClone.Gameplay.Combat
 {
     /// <summary>
     /// Autoridad unica del turno: incrementa el contador, roba para ambos
-    /// lados, deriva la energia disponible del tablero y cierra el turno.
+    /// lados, deriva la energia disponible del ledger y cierra el turno.
     /// </summary>
     public class TurnManager
     {
@@ -21,7 +22,6 @@ namespace SnapClone.Gameplay.Combat
         private readonly TimeService _timeService;
         private readonly PowerResolver _powerResolver;
         private readonly EffectProcessor _effectProcessor;
-        private int _reservedEnergy;
 
         public TurnPhase CurrentPhase { get; private set; }
 
@@ -30,11 +30,8 @@ namespace SnapClone.Gameplay.Combat
         /// <summary>Energia que otorga el turno actual: min(turno, 6).</summary>
         public int EnergyPool => Math.Min(_boardState.CurrentTurn, MaxTurns);
 
-        /// <summary>
-        /// Energia disponible: pool menos el coste de las cartas jugadas este
-        /// turno menos la reserva de una carta levantada del tablero.
-        /// </summary>
-        public int AvailableEnergy => Math.Max(0, EnergyPool - SpentEnergy - _reservedEnergy);
+        /// <summary>Energia del jugador, para la UI y las validaciones de arrastre.</summary>
+        public int PlayerAvailableEnergy => AvailableEnergy(BoardSide.Player);
 
         public bool IsMatchOver => _boardState.CurrentTurn >= MaxTurns;
 
@@ -50,62 +47,77 @@ namespace SnapClone.Gameplay.Combat
             CurrentPhase = TurnPhase.TurnStart;
         }
 
-        /// <summary>
-        /// Coste de las cartas del jugador que siguen en el tablero y fueron
-        /// jugadas en el turno actual. Las de turnos anteriores no cuentan.
-        /// </summary>
-        private int SpentEnergy
-        {
-            get
-            {
-                int total = 0;
-
-                foreach (var zone in _boardState.Zones)
-                {
-                    foreach (var card in zone.PlayerCards)
-                    {
-                        if (_boardState.CurrentTurn > 0 &&
-                            card.PlayedTurn == _boardState.CurrentTurn)
-                        {
-                            total += card.Definition.Cost;
-                        }
-                    }
-                }
-
-                return total;
-            }
-        }
-
-        /// <summary>Reserva el coste de una carta levantada del tablero.</summary>
-        public void ReserveEnergy(int cost) => _reservedEnergy = Math.Max(0, cost);
-
-        public void ReleaseReservation() => _reservedEnergy = 0;
+        /// <summary>Energia disponible del lado indicado segun su ledger del turno.</summary>
+        public int AvailableEnergy(BoardSide side) =>
+            _boardState.GetEnergy(side).Available(EnergyPool);
 
         public void StartTurn()
         {
             CurrentPhase = TurnPhase.TurnStart;
             _boardState.CurrentTurn++;
             _boardState.TurnCount = _boardState.CurrentTurn;
-            _reservedEnergy = 0;
+            _boardState.ResetTurnTracking();
             _boardState.CurrentEnergy = EnergyPool;
 
-            DrawCard(_boardState.PlayerDeck, _boardState.PlayerHand);
-            DrawCard(_boardState.AIDeck, _boardState.AIHand);
+            DrawTurnCard(_boardState.PlayerDeck, _boardState.PlayerHand, BoardSide.Player);
+            DrawTurnCard(_boardState.AIDeck, _boardState.AIHand, BoardSide.AI);
 
             RevealZones();
+
+            _powerResolver.UpdateAllPowers(_boardState);
 
             CurrentPhase = TurnPhase.PlayPhase;
             _timeService.StartTurnTimer();
         }
 
-        private static void DrawCard(List<CardInstance> deck, List<CardInstance> hand)
+        private void DrawTurnCard(List<CardInstance> deck, List<CardInstance> hand,
+            BoardSide side)
         {
             if (deck.Count == 0) return;
+            if (hand.Count >= BoardState.MaxHandSize) return;
 
-            var card = deck[0];
-            deck.RemoveAt(0);
+            int index = -1;
+
+            if (_boardState.CurrentTurn == 1)
+            {
+                for (int i = 0; i < deck.Count; i++)
+                {
+                    if (!OpeningHandDealer.IsForcedTurn2(deck[i]))
+                    {
+                        index = i;
+                        break;
+                    }
+                }
+            }
+            else if (_boardState.CurrentTurn == 2)
+            {
+                for (int i = 0; i < deck.Count; i++)
+                {
+                    if (OpeningHandDealer.IsForcedTurn2(deck[i]))
+                    {
+                        index = i;
+                        break;
+                    }
+                }
+            }
+
+            if (index < 0) index = 0;
+
+            var card = deck[index];
+            deck.RemoveAt(index);
             hand.Add(card);
             card.Location = CardLocation.Hand;
+
+            _effectProcessor?.Dispatch(_boardState, new ActionEvent
+            {
+                Kind = ActionEventKind.Drawn,
+                SourceCard = card,
+                Side = side,
+                OriginLocation = CardLocation.Deck,
+                DestinationLocation = CardLocation.Hand,
+                Turn = _boardState.CurrentTurn,
+                Cause = ActionCause.Effect
+            });
         }
 
         private void RevealZones()
@@ -132,7 +144,6 @@ namespace SnapClone.Gameplay.Combat
         {
             _timeService.StopTurnTimer();
             CurrentPhase = TurnPhase.TurnEnd;
-            _reservedEnergy = 0;
 
             // Primero se resuelven los efectos con el tablero tal como quedo
             // al cerrar el turno; el poder se actualiza y solo despues se

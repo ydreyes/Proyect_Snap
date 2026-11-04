@@ -1,3 +1,5 @@
+using SnapClone.Gameplay.Cards;
+
 namespace SnapClone.Effects.Implementations
 {
     /// <summary>
@@ -17,9 +19,13 @@ namespace SnapClone.Effects.Implementations
             if (watchedZone < 0 && context.SourceZone != null)
                 watchedZone = context.SourceZone.ZoneIndex;
 
-            card.PendingBonusTurn = context.TurnNumber;
-            card.PendingBonusZoneIndex = watchedZone;
-            card.PendingBonusAmount = Amount;
+            card.PendingEffects.Add(new PendingCardEffect
+            {
+                Kind = PendingEffectKind.AllyPlayedInZoneNextTurn,
+                ArmedTurn = context.TurnNumber,
+                ZoneIndex = watchedZone,
+                Amount = Amount
+            });
         }
     }
 }

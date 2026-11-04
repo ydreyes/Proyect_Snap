@@ -15,10 +15,12 @@ namespace SnapClone.Gameplay.AI
     public class AIStrategy
     {
         private readonly RandomService _randomService;
+        private readonly TurnManager _turnManager;
 
-        public AIStrategy(RandomService randomService)
+        public AIStrategy(RandomService randomService, TurnManager turnManager)
         {
             _randomService = randomService;
+            _turnManager = turnManager;
         }
 
         public (CardInstance card, ZoneInstance zone, int slot)? MakeDecision(BoardState boardState)
@@ -34,6 +36,7 @@ namespace SnapClone.Gameplay.AI
             foreach (var zone in boardState.Zones)
             {
                 if (zone.AICards.Count >= ZoneInstance.MaxCardsPerSide) continue;
+                if (!zone.CanPlay(chosenCard, BoardSide.AI)) continue;
 
                 if (zone.AICards.Count < fewest)
                 {
@@ -54,14 +57,29 @@ namespace SnapClone.Gameplay.AI
 
         private CardInstance ChooseCard(BoardState boardState)
         {
-            int available = GetAvailableEnergy(boardState);
+            int available = _turnManager.AvailableEnergy(BoardSide.AI);
+
+            var affordable = new List<CardInstance>();
+            foreach (var card in boardState.AIHand)
+            {
+                if (card.Definition.Cost <= available)
+                    affordable.Add(card);
+            }
+
+            var safe = new List<CardInstance>();
+            foreach (var card in affordable)
+            {
+                if (!IsSelfHarmful(card))
+                    safe.Add(card);
+            }
+
+            var candidates = safe.Count > 0 ? safe : affordable;
             List<CardInstance> best = new List<CardInstance>();
             float bestScore = float.MinValue;
 
-            foreach (var card in boardState.AIHand)
+            foreach (var card in candidates)
             {
                 int cost = card.Definition.Cost;
-                if (cost > available) continue;
 
                 // Coste 0 siempre primero; el resto, poder por energia.
                 float score = cost == 0
@@ -85,28 +103,12 @@ namespace SnapClone.Gameplay.AI
             return best[_randomService.Next(best.Count)];
         }
 
-        /// <summary>
-        /// Energia disponible de la IA: pool del turno menos el coste de sus
-        /// cartas jugadas en el turno actual.
-        /// </summary>
-        private static int GetAvailableEnergy(BoardState boardState)
+        private static bool IsSelfHarmful(CardInstance card)
         {
-            int pool = Math.Min(boardState.CurrentTurn, TurnManager.MaxTurns);
-            int spent = 0;
+            var tags = card?.Definition?.Tags;
+            if (tags == null) return false;
 
-            if (boardState.CurrentTurn > 0)
-            {
-                foreach (var zone in boardState.Zones)
-                {
-                    foreach (var card in zone.AICards)
-                    {
-                        if (card.PlayedTurn == boardState.CurrentTurn)
-                            spent += card.Definition.Cost;
-                    }
-                }
-            }
-
-            return Math.Max(0, pool - spent);
+            return tags.Contains("self_discard") || tags.Contains("self_destroy");
         }
     }
 }

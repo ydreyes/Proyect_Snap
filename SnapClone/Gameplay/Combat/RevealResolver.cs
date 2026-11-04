@@ -20,12 +20,12 @@ namespace SnapClone.Gameplay.Combat
             {
                 foreach (var card in zone.PlayerCards)
                 {
-                    if (card.PlayedTurn == boardState.CurrentTurn)
+                    if (card.PlayedTurn == boardState.CurrentTurn && !card.HasRevealed)
                         playerCardsThisTurn.Add(card);
                 }
                 foreach (var card in zone.AICards)
                 {
-                    if (card.PlayedTurn == boardState.CurrentTurn)
+                    if (card.PlayedTurn == boardState.CurrentTurn && !card.HasRevealed)
                         aiCardsThisTurn.Add(card);
                 }
             }
