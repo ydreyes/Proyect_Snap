@@ -1,0 +1,2 @@
+int drawable snapclone_icon 0x7f010000
+int style SnapCloneTheme 0x7f020000

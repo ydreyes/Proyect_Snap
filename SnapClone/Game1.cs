@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using System;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using SnapClone.Core.Services;
@@ -18,31 +19,44 @@ namespace SnapClone
         private GameServices _services;
         private SceneManager _sceneManager;
         private LayoutManager _layoutManager;
+        private Rectangle _appliedSafeInsets;
+        private bool _safeAreaApplied;
+
+        /// <summary>
+        /// Lo asigna el host Android antes de Run(); en escritorio queda null y
+        /// el viewport usa toda la superficie.
+        /// </summary>
+        public ISafeAreaProvider SafeAreaProvider { get; set; }
 
         public Game1()
         {
             _graphics = new GraphicsDeviceManager(this);
 
-            // La ventana se ajusta al area de trabajo real (descontando la barra
-            // de tareas) manteniendo la relacion 9:16 del modo portrait.
-            GetWorkArea(out int workWidth, out int workHeight);
-
-            int maxWidth = (int)(workWidth * 0.92f);
-            int maxHeight = (int)(workHeight * 0.94f);
-
-            int height = System.Math.Min(1280, maxHeight);
-            int width = (int)(height * 9f / 16f);
-
-            if (width > maxWidth)
+            // En Android el tamano de la superficie lo decide la plataforma.
+            if (!OperatingSystem.IsAndroid())
             {
-                width = maxWidth;
-                height = (int)(width * 16f / 9f);
+                // La ventana se ajusta al area de trabajo real (descontando la barra
+                // de tareas) manteniendo la relacion 9:16 del modo portrait.
+                GetWorkArea(out int workWidth, out int workHeight);
+
+                int maxWidth = (int)(workWidth * 0.92f);
+                int maxHeight = (int)(workHeight * 0.94f);
+
+                int height = System.Math.Min(1280, maxHeight);
+                int width = (int)(height * 9f / 16f);
+
+                if (width > maxWidth)
+                {
+                    width = maxWidth;
+                    height = (int)(width * 16f / 9f);
+                }
+
+                _graphics.PreferredBackBufferWidth = width;
+                _graphics.PreferredBackBufferHeight = height;
             }
 
-            _graphics.PreferredBackBufferWidth = width;
-            _graphics.PreferredBackBufferHeight = height;
             Content.RootDirectory = "Content";
-            IsMouseVisible = true;
+            IsMouseVisible = !OperatingSystem.IsAndroid();
         }
 
         [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
@@ -115,12 +129,15 @@ namespace SnapClone
             _sceneManager = new SceneManager();
             _services.Register(_sceneManager);
 
-            Window.AllowUserResizing = true;
-            Window.ClientSizeChanged += (_, __) =>
+            if (!OperatingSystem.IsAndroid())
             {
-                _layoutManager.CalculateLayout();
-                _graphics.ApplyChanges();
-            };
+                Window.AllowUserResizing = true;
+                Window.ClientSizeChanged += (_, __) =>
+                {
+                    _layoutManager.CalculateLayout();
+                    _graphics.ApplyChanges();
+                };
+            }
             
             base.Initialize();
         }
@@ -140,9 +157,50 @@ namespace SnapClone
             _sceneManager.ChangeScene("Menu");
         }
 
+        /// <summary>
+        /// Reduce el viewport al area segura del dispositivo. Como todas las
+        /// escenas calculan con Viewport.Width/Height, una sola transformacion
+        /// mantiene el contenido fuera del notch y de las barras del sistema.
+        /// </summary>
+        private void ApplySafeArea()
+        {
+            if (SafeAreaProvider == null)
+                return;
+
+            var insets = SafeAreaProvider.GetInsets();
+
+            var presentation = GraphicsDevice.PresentationParameters;
+            int x = System.Math.Max(0, insets.X);
+            int y = System.Math.Max(0, insets.Y);
+            int width = presentation.BackBufferWidth - x - System.Math.Max(0, insets.Width);
+            int height = presentation.BackBufferHeight - y - System.Math.Max(0, insets.Height);
+
+            if (width <= 0 || height <= 0)
+                return;
+
+            var current = GraphicsDevice.Viewport;
+            if (_safeAreaApplied && insets == _appliedSafeInsets &&
+                current.X == x && current.Y == y &&
+                current.Width == width && current.Height == height)
+                return;
+
+            GraphicsDevice.Viewport = new Viewport(x, y, width, height);
+            _appliedSafeInsets = insets;
+            _safeAreaApplied = true;
+            _layoutManager.CalculateLayout();
+
+            if (_services != null && _services.Has<InputService>())
+                _services.Get<InputService>().PointerOffset = new Vector2(x, y);
+        }
+
         protected override void Update(GameTime gameTime)
         {
-            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
+            ApplySafeArea();
+
+            // En Android la salida la controla la actividad (gesto/tecla atras).
+            if (!OperatingSystem.IsAndroid() &&
+                (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed ||
+                 Keyboard.GetState().IsKeyDown(Keys.Escape)))
                 Exit();
 
             _sceneManager.Update(gameTime);
@@ -152,6 +210,21 @@ namespace SnapClone
 
         protected override void Draw(GameTime gameTime)
         {
+            // Con area segura el viewport queda reducido: se pinta primero toda
+            // la superficie de negro para que las bandas fuera del area segura
+            // (notch y barra de gestos) sean un letterbox intencional y no queden
+            // sin limpiar cuando Android recrea la superficie al reanudar.
+            if (SafeAreaProvider != null)
+            {
+                var insetViewport = GraphicsDevice.Viewport;
+                var presentation = GraphicsDevice.PresentationParameters;
+
+                GraphicsDevice.Viewport = new Viewport(
+                    0, 0, presentation.BackBufferWidth, presentation.BackBufferHeight);
+                GraphicsDevice.Clear(Color.Black);
+                GraphicsDevice.Viewport = insetViewport;
+            }
+
             _sceneManager.Draw(gameTime, _spriteBatch);
 
             base.Draw(gameTime);

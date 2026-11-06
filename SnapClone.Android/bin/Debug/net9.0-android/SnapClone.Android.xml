@@ -1,0 +1,641 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>SnapClone.Android</name>
+    </assembly>
+    <members>
+        <member name="T:SnapClone.Android.Resource">
+            <summary>
+            Android Resource Designer class.
+            Exposes the Android Resource designer assembly into the project Namespace.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Core.Layout.LayoutManager">
+            <summary>
+            Calcula todas las regiones de la escena de combate a partir del
+            tamano real del viewport, usando proporciones. Asi el layout es
+            adaptativo a cualquier resolucion portrait.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Core.Layout.LayoutManager.GetLocationPanel(System.Int32)">
+            <summary>
+            Placa compacta entre las dos rejillas 2x2 (0.345 - 0.470).
+            </summary>
+        </member>
+        <member name="M:SnapClone.Core.Layout.LayoutManager.GetPlayerDropRegion(System.Int32)">
+            <summary>
+            Region de drop de una locacion para el jugador: placa + rejilla
+            2x2. El snap magnetico busca el slot libre mas cercano dentro.
+            </summary>
+        </member>
+        <member name="P:SnapClone.Core.Services.InputService.PointerOffset">
+            <summary>
+            Origen del area de juego dentro de la superficie. En Android coincide
+            con los insets del area segura; en escritorio es cero.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Core.Services.InputService.UpdateTouchPointer">
+            <summary>
+            Lee el panel tactil una sola vez por frame (el estado envejece al
+            consultarlo) y sigue el primer dedo que empezo el contacto.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Core.Services.ISafeAreaProvider">
+            <summary>
+            Informa el area no dibujable del dispositivo (notch, barras del sistema,
+            zona de gestos). Desktop no registra implementacion y usa cero insets.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Core.Services.ISafeAreaProvider.GetInsets">
+            <summary>Insets en pixeles: X=izquierda, Y=arriba, Width=derecha, Height=abajo.</summary>
+        </member>
+        <member name="M:SnapClone.Data.Content.ContentLoader.ValidateCardEffects(SnapClone.Data.Registries.CardRegistry,SnapClone.Data.Registries.EffectRegistry)">
+            <summary>
+            Falla antes de un combate si una carta referencia un efecto
+            inexistente o sin implementacion. Las zonas pueden declarar efectos
+            sin implementar y quedan exentas.
+            </summary>
+        </member>
+        <member name="P:SnapClone.Data.Definitions.CardDef.IsToken">
+            <summary>Los tokens no entran al draft ni a las recompensas.</summary>
+        </member>
+        <member name="M:SnapClone.Data.Definitions.CardDef.Clone">
+            <summary>Copia independiente para transformaciones y copias de carta.</summary>
+        </member>
+        <member name="M:SnapClone.Data.Registries.CardRegistry.GetDraftable">
+            <summary>Solo definiciones que pueden ofrecerse en draft y recompensas.</summary>
+        </member>
+        <member name="T:SnapClone.Effects.EffectProcessor">
+            <summary>
+            Resuelve los efectos de carta. Las implementaciones se crean una vez y
+            se cachean porque son stateless; el estado mutable vive en las cartas y
+            en el tablero. Las consultas Ongoing nunca escriben el poder actual.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Effects.EffectProcessor.GetCardPowerBonus(SnapClone.Gameplay.Cards.CardInstance,SnapClone.Gameplay.Board.ZoneInstance,SnapClone.Gameplay.Board.BoardState,SnapClone.Gameplay.Board.BoardSide)">
+            <summary>Suma self-bonuses, auras, efectos de zona y condiciones.</summary>
+        </member>
+        <member name="M:SnapClone.Effects.EffectProcessor.GetZoneMultiplier(SnapClone.Gameplay.Board.ZoneInstance,SnapClone.Gameplay.Board.BoardSide,SnapClone.Gameplay.Board.BoardState)">
+            <summary>Producto de los multiplicadores Ongoing del lado en la zona.</summary>
+        </member>
+        <member name="M:SnapClone.Effects.EffectProcessor.GetZoneAddition(SnapClone.Gameplay.Board.ZoneInstance,SnapClone.Gameplay.Board.BoardSide,SnapClone.Gameplay.Board.BoardState)">
+            <summary>Bonos aditivos de una carta a otra zona, como Klaw.</summary>
+        </member>
+        <member name="P:SnapClone.Effects.EffectContext.Event">
+            <summary>Evento que disparo el efecto, si no es OnReveal.</summary>
+        </member>
+        <member name="P:SnapClone.Effects.EffectContext.EmitEvent">
+            <summary>Permite a un efecto encolar otro evento durante una cascada.</summary>
+        </member>
+        <member name="P:SnapClone.Effects.EffectContext.Actions">
+            <summary>Puerta de acciones para destruir, mover, copiar, fusionar, etc.</summary>
+        </member>
+        <member name="T:SnapClone.Effects.ICardPowerModifier">
+            <summary>
+            Contrato continuo para el poder de una carta. Se consulta en cada
+            calculo y nunca escribe el poder actual, asi el resultado es idempotente.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Effects.IZonePowerMultiplier">
+            <summary>
+            Contrato continuo para el total de una zona. Varios multiplicadores
+            de la misma zona se multiplican entre si.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Effects.ICardAura">
+            <summary>Aura que suma poder a otra carta.</summary>
+        </member>
+        <member name="T:SnapClone.Effects.IZoneCardPowerModifier">
+            <summary>Efecto de zona que suma poder a una carta concreta.</summary>
+        </member>
+        <member name="T:SnapClone.Effects.IZonePowerAddition">
+            <summary>Efecto que suma poder a una zona distinta de la de su fuente.</summary>
+        </member>
+        <member name="T:SnapClone.Effects.ICardDestroyReplacement">
+            <summary>Reemplazo de una destruccion antes de mover la carta a una pila.</summary>
+        </member>
+        <member name="T:SnapClone.Effects.ICardDiscardReplacement">
+            <summary>Reemplazo de un descarte antes de mover la carta a una pila.</summary>
+        </member>
+        <member name="T:SnapClone.Effects.ICardEffectActions">
+            <summary>
+            Operaciones que un efecto puede ejecutar sin mutar el tablero por su
+            cuenta. La implementa CardActionService.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Effects.Implementations.CardEffectBase">
+            <summary>
+            Base de los efectos de carta. Las implementaciones son stateless: todo
+            el estado mutable vive en CardInstance o BoardState, de modo que el
+            processor puede cachearlas y reutilizarlas.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Effects.Implementations.HawkeyeOnRevealEffect">
+            <summary>
+            Hawkeye: arma un bonus de +5 que se resuelve al final del turno
+            siguiente si se jugo una carta aliada en la zona donde se jugo Hawkeye.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Effects.Implementations.IronManOngoingEffect">
+            <summary>
+            Iron Man: cada copia multiplica por dos el total de su lado en la zona.
+            No cambia el poder individual de las cartas.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Effects.Implementations.MedusaOnRevealEffect">
+            <summary>
+            Medusa: gana +3 al revelarse solo si esta en la zona central.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Effects.Implementations.PunisherOngoingEffect">
+            <summary>
+            Punisher: +1 de poder por cada carta enemiga en su zona actual.
+            El bonus se deriva en cada calculo, nunca se acumula.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Effects.Implementations.SentinelOnRevealEffect">
+            <summary>
+            Sentinel: al revelarse crea una nueva instancia de Sentinel en la mano
+            de su duenio, si la mano tiene espacio.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Effects.Implementations.StarLordOnRevealEffect">
+            <summary>
+            Star-Lord: gana +4 al revelarse si al menos una carta rival fue jugada
+            en su zona durante el mismo turno. Usa el registro de jugadas para que
+            una carta movida o destruida despues de jugarse siga contando.
+            </summary>
+        </member>
+        <member name="P:SnapClone.Game1.SafeAreaProvider">
+            <summary>
+            Lo asigna el host Android antes de Run(); en escritorio queda null y
+            el viewport usa toda la superficie.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Game1.GetWorkArea(System.Int32@,System.Int32@)">
+            <summary>
+            Devuelve el area util del escritorio (sin barra de tareas).
+            Si la consulta falla se usa el modo de pantalla actual.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Game1.ApplySafeArea">
+            <summary>
+            Reduce el viewport al area segura del dispositivo. Como todas las
+            escenas calculan con Viewport.Width/Height, una sola transformacion
+            mantiene el contenido fuera del notch y de las barras del sistema.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.Actions.ActionEvent">
+            <summary>
+            Evento emitido por el servicio de acciones. El contexto de efecto lo
+            consume para resolver disparadores que no son OnReveal.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.Actions.PlayRecord">
+            <summary>
+            Registro de una jugada desde la mano. Se usa para resolver condiciones
+            del tipo "si el rival jugo una carta aqui este turno".
+            </summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.Actions.CardActionService">
+            <summary>
+            Autoridad unica de las acciones de carta de un combate. La escena y la
+            IA llaman aqui; ninguna de las dos muta zonas, manos o pilas por su cuenta.
+            No conoce tipos de MonoGame.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.Actions.TurnEnergyLedger">
+            <summary>
+            Energia del turno por lado. Solo devuelve coste cuando la carta vuelve
+            a la mano; destruir, fusionar o desterrar no devuelve nada.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.AI.AIController">
+            <summary>
+            Aplica las decisiones de la IA al tablero a traves de la misma autoridad
+            de acciones que el jugador. No conoce tipos de UI.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Gameplay.AI.AIController.TryPlayAll">
+            <summary>
+            Juega mientras quede una carta pagable y un slot libre. Devuelve
+            las jugadas para que la escena les asigne una vista.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.AI.AIStrategy">
+            <summary>
+            IA de prototipo: elige entre las cartas que puede pagar con su energia
+            disponible, priorizando poder por coste, y reparte las jugadas entre
+            las zonas con menos cartas.
+            </summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Board.BoardState.PlayLog">
+            <summary>Jugadas desde la mano, para condiciones "jugo aqui este turno".</summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Board.BoardState.PlayedThisTurn">
+            <summary>Instancias que ya dispararon AfterPlayed en el turno actual.</summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Board.BoardState.PlayerPendingNextPlay">
+            <summary>Efectos "la proxima carta que juegues" por lado.</summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Board.BoardState.PlayerSeesHiddenZones">
+            <summary>Uatu: el lado ve la informacion de locaciones no reveladas.</summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Board.BoardState.DestroyProtections">
+            <summary>
+            Hooks que pueden impedir una destruccion. Vacios en este cambio;
+            Armor y Professor X los usaran mas adelante.
+            </summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Board.BoardState.Version">
+            <summary>
+            Se incrementa cada vez que una carta cambia de pila. La escena lo usa
+            para reconciliar las vistas sin eventos.
+            </summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Board.BoardState.PowerResolver">
+            <summary>
+            Resolver compartido del combate. Al asignarlo, cada zona obtiene la
+            referencia al tablero para calcular su total por el mismo camino.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.Board.CardPileManager">
+            <summary>
+            Unica puerta para mover una carta a una pila. Quita la carta de la mano,
+            el mazo o la zona del lado indicado, limpia su estado de combate y, si
+            se destierra, la saca del mazo de la run.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.Board.IZonePlayConstraint">
+            <summary>
+            Restriccion de juego por zona. En este cambio no hay ninguna
+            registrada; Professor X la usara mas adelante.
+            </summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Board.ZoneInstance.Board">
+            <summary>
+            Tablero al que pertenece la zona. Lo asigna BoardState para que los
+            totales deleguen en el mismo PowerResolver que el resto del juego.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Gameplay.Board.ZoneInstance.IsVisibleTo(SnapClone.Gameplay.Board.BoardSide)">
+            <summary>Revelado real o visibilidad otorgada por Uatu.</summary>
+        </member>
+        <member name="M:SnapClone.Gameplay.Board.ZoneInstance.SumRaw(System.Collections.Generic.List{SnapClone.Gameplay.Cards.CardInstance})">
+            <summary>
+            Suma de respaldo cuando la zona no esta conectada a un tablero con
+            resolver (tests o construccion antigua).
+            </summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.Cards.PendingCardEffect">
+            <summary>
+            Efecto diferido armado por una carta. Hawkeye usa el primero; la lista
+            permite que varias cartas o varios efectos convivan en la misma instancia.
+            </summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Cards.CardInstance.BonusPower">
+            <summary>Bonus persistente de un efecto OnReveal resuelto.</summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Cards.CardInstance.PlayedZoneIndex">
+            <summary>Zona donde se jugo desde la mano; -1 si no se jugo.</summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Cards.CardInstance.PendingEffects">
+            <summary>Efectos diferidos que esperan una condicion futura.</summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Cards.CardInstance.HasRevealed">
+            <summary>
+            Marca que la carta ya paso por la secuencia de reveal del combate.
+            No se limpia al volver a la mano ni al entrar en una pila.
+            </summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Cards.CardInstance.AbilitiesDisabled">
+            <summary>Enchantress y efectos equivalentes apagan las habilidades.</summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Cards.CardInstance.IsMerged">
+            <summary>Hulkbuster deja el tablero fusionado, sin entrar en una pila.</summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Cards.CardInstance.Location">
+            <summary>Donde vive la carta. Las pilas solo las asigna CardPileManager.</summary>
+        </member>
+        <member name="M:SnapClone.Gameplay.Cards.CardInstance.ClearPlayState">
+            <summary>
+            Limpia el estado de "jugada este turno". Se usa al volver a la mano
+            y conserva el bonus persistente, los perks, la marca de reveal y
+            el estado de habilidades desactivadas.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Gameplay.Cards.CardInstance.ResetForCombat">
+            <summary>
+            Deja la carta lista para un combate nuevo. Los bonus, el reveal y
+            las habilidades desactivadas son de combate, no de run; los perks si.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.Cards.CardInstanceFactory">
+            <summary>
+            Crea copias, transformaciones y tokens con definiciones independientes.
+            Las copias conservan el poder persistente actual, pero no los perks de
+            run, para no duplicar progresion.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.Cards.PileKind">
+            <summary>Las tres pilas que puede tener cada lado en un combate.</summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.Cards.CardLocation">
+            <summary>
+            Donde esta una carta. Las tres ultimas son pilas y solo las asigna
+            CardPileManager; el resto lo asignan las transiciones normales.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.Cards.PileSet">
+            <summary>
+            Las tres pilas de un lado durante el combate actual. Cada pila conserva
+            el orden de entrada; la vista las muestra de la mas reciente a la mas
+            antigua.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Gameplay.Cards.PileSet.Add(SnapClone.Gameplay.Cards.CardInstance,SnapClone.Gameplay.Cards.PileKind)">
+            <summary>Agrega una carta; rechaza duplicados del mismo ejemplar.</summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.Combat.OpeningHandDealer">
+            <summary>
+            Reparte la mano inicial. Primero mueve todas las cartas etiquetadas
+            para empezar en la mano y despues completa con el resto del mazo,
+            saltando las cartas que se roban obligatoriamente en el turno 2.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.Combat.PowerResolver">
+            <summary>
+            Resuelve el poder de una carta como poder base mas perks, bonus
+            persistentes y modificadores Ongoing. Nunca lee el poder actual como
+            entrada, asi el calculo es idempotente y no se acumula entre
+            evaluaciones.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Gameplay.Combat.PowerResolver.CalculateCardPower(SnapClone.Gameplay.Cards.CardInstance,SnapClone.Gameplay.Board.ZoneInstance,SnapClone.Gameplay.Board.BoardState,SnapClone.Gameplay.Board.BoardSide)">
+            <summary>
+            Poder puro de una carta. Con zona, incluye los efectos Ongoing que
+            dependen de la zona; sin zona, solo base, perks y bonus persistente.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Gameplay.Combat.PowerResolver.CalculateZonePower(SnapClone.Gameplay.Board.ZoneInstance,SnapClone.Gameplay.Board.BoardSide)">
+            <summary>
+            Total de un lado en la zona: suma de los poderes individuales por el
+            producto de los multiplicadores Ongoing de ese lado.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Gameplay.Combat.PowerResolver.ResolveCard(SnapClone.Gameplay.Cards.CardInstance)">
+            <summary>Recalcula y escribe el poder de una carta fuera de una zona.</summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.Combat.TurnManager">
+            <summary>
+            Autoridad unica del turno: incrementa el contador, roba para ambos
+            lados, deriva la energia disponible del ledger y cierra el turno.
+            </summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Combat.TurnManager.EnergyPool">
+            <summary>Energia que otorga el turno actual: min(turno, 6).</summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Combat.TurnManager.PlayerAvailableEnergy">
+            <summary>Energia del jugador, para la UI y las validaciones de arrastre.</summary>
+        </member>
+        <member name="M:SnapClone.Gameplay.Combat.TurnManager.AvailableEnergy(SnapClone.Gameplay.Board.BoardSide)">
+            <summary>Energia disponible del lado indicado segun su ledger del turno.</summary>
+        </member>
+        <member name="M:SnapClone.Gameplay.Combat.TurnManager.RevealAllZones">
+            <summary>
+            Revela todas las locaciones. Lo usa la escena cuando el combate
+            termina antes del turno 3: el resultado se calcula con informacion
+            completa.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.Draft.DraftSystem">
+            <summary>
+            Borrador de 8 rondas: cada ronda ofrece 3 cartas distintas y el
+            jugador elige 1. Una carta no puede superar las 2 copias.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Gameplay.Draft.DraftSystem.GetChoices">
+            <summary>
+            Devuelve hasta 3 cartas distintas que todavia pueden draftearse.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.Run.ProgressionManager">
+            <summary>
+            Mapea el indice de combate a la estructura de la run (3 ciclos de 5)
+            y decide a que escena va cada resultado.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Gameplay.Run.ProgressionManager.ResolveCombat(System.String)">
+            <summary>
+            Resuelve un combate terminado. Devuelve el nombre de la escena a la
+            que hay que ir. En victoria con recompensa la run no avanza hasta
+            que el jugador termina la pantalla de recompensa.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Gameplay.Run.ProgressionManager.CompleteReward">
+            <summary>
+            Se llama al salir de la pantalla de recompensa. Avanza el combate
+            solo si la recompensa venia de una victoria.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Gameplay.Run.RewardSystem">
+            <summary>
+            Genera ofertas de recompensa sin duplicados. Las cartas nuevas salen
+            del catalogo respetando el limite de copias del draft; las de perk
+            salen del mazo actual. Solo se ofrecen perks con modificador positivo.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Gameplay.Run.RewardSystem.GetCardRewards(SnapClone.Gameplay.Run.RunState)">
+            <summary>Tres cartas distintas del catalogo, cada una con un perk.</summary>
+        </member>
+        <member name="M:SnapClone.Gameplay.Run.RewardSystem.GetPerkRewards(SnapClone.Gameplay.Run.RunState)">
+            <summary>Tres cartas distintas del mazo, cada una emparejada con un perk.</summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Run.RunState.PendingReward">
+            <summary>Motivo por el que se abrio la pantalla de recompensa.</summary>
+        </member>
+        <member name="P:SnapClone.Gameplay.Run.RunState.AdvanceAfterReward">
+            <summary>
+            Si la recompensa debe avanzar el combate (victoria) o repetirlo
+            (derrota o empate).
+            </summary>
+        </member>
+        <member name="T:SnapClone.Scenes.CombatScene">
+            <summary>
+            Escena de combate: 3 locaciones con rejilla 2x2 por lado, placa
+            compacta, mano abajo y 6 turnos. La energia limita las jugadas.
+            Permite arrastrar de la mano al tablero y del tablero a la mano.
+            </summary>
+        </member>
+        <member name="F:SnapClone.Scenes.CombatScene.TapThreshold">
+            <summary>Distancia que separa un toque de un arrastre.</summary>
+        </member>
+        <member name="M:SnapClone.Scenes.CombatScene.OnEnter">
+            <summary>
+            Cada entrada a combate empieza una partida nueva: tablero vacio,
+            mazo de la run, manos repartidas y turno 1.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Scenes.CombatScene.SetupDecks">
+            <summary>
+            El jugador combate con el mazo que salio del draft. Si se entra
+            directo (sin draft), se usa un mazo aleatorio de respaldo.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Scenes.CombatScene.RefreshPowerTotals">
+            <summary>
+            Unica escritura de los totales de las placas. Recalcula el poder de
+            todas las cartas y copia el total de cada zona a su LocationView.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Scenes.CombatScene.SyncViewsIfDirty">
+            <summary>
+            Reconcilia mano y slots cuando una carta cambio de pila. Se apoya en
+            BoardState.Version: si nadie movio una carta, no hace nada.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Scenes.CombatScene.CancelVanishedDrag">
+            <summary>
+            Si la carta arrastrada entro en una pila, se cancela el arrastre sin
+            devolverla a ningun sitio. Se mira la pila y no la mano o la zona
+            porque empezar a arrastrar ya la saca de ahi.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Scenes.CombatScene.BeginPress(Microsoft.Xna.Framework.Vector2)">
+            <summary>
+            Registra lo que hay bajo el puntero sin tocar el tablero. El arrastre
+            solo empieza si el puntero se mueve mas alla del umbral; si no, al
+            soltar se abre el panel de detalle.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Scenes.CombatScene.ResolveTarget(Microsoft.Xna.Framework.Vector2)">
+            <summary>
+            Snap magnetico: si el puntero esta sobre la mitad del jugador de
+            una locacion, devuelve su slot libre mas cercano.
+            </summary>
+        </member>
+        <member name="M:SnapClone.Scenes.CombatScene.PlayAIAll">
+            <summary>
+            La IA juega todas las cartas que puede pagar al inicio del turno.
+            Se crea una vista por jugada y se recalcula el poder de la locacion.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Scenes.DraftScene">
+            <summary>
+            Borrador real: 8 rondas de 1 entre 3. Al completar las 8 cartas,
+            el mazo pasa a la escena de combate.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Scenes.GameOverScene">
+            <summary>
+            Pantalla de fin de run: victoria tras el combate 15 o derrota al
+            quedarse sin vidas. Ambas vuelven al menu con un clic.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Scenes.MenuScene">
+            <summary>
+            Menu principal. Todo el layout se calcula con proporciones del
+            viewport real, asi funciona en cualquier tamano de pantalla.
+            </summary>
+        </member>
+        <member name="T:SnapClone.Scenes.RewardScene">
+            <summary>
+            Pantalla de recompensa real. En victoria o derrota ofrece 3 cartas con
+            perk; en el nodo de perk ofrece 3 cartas del mazo emparejadas con un
+            perk. Con el mazo lleno pide quitar una carta antes de anadir la nueva.
+            </summary>
+        </member>
+        <member name="T:SnapClone.UI.Components.AvatarView">
+            <summary>
+            Retrato hexagonal con banner de nombre, usado para el jugador
+            y el oponente en la cabecera de la escena de combate.
+            </summary>
+        </member>
+        <member name="M:SnapClone.UI.Components.AvatarView.Contains(Microsoft.Xna.Framework.Vector2)">
+            <summary>Zona clicable del avatar: el recuadro completo del retrato.</summary>
+        </member>
+        <member name="T:SnapClone.UI.Components.CardView">
+            <summary>
+            Representacion visual de una carta o de un slot vacio.
+            Todo se dibuja con primitivas generadas en memoria.
+            </summary>
+        </member>
+        <member name="P:SnapClone.UI.Components.CardView.IsAffordable">
+            <summary>
+            Indica si el jugador puede pagar la carta con la energia actual.
+            Solo afecta al dibujo de la mano.
+            </summary>
+        </member>
+        <member name="P:SnapClone.UI.Components.CardView.Origin">
+            <summary>De donde salio la carta en el arrastre actual.</summary>
+        </member>
+        <member name="P:SnapClone.UI.Components.CardView.Center">
+            <summary>Centro de la carta, usado para el hit testing al soltar.</summary>
+        </member>
+        <member name="M:SnapClone.UI.Components.CardView.DrawEmptySlot(Microsoft.Xna.Framework.Graphics.SpriteBatch,SnapClone.UI.Primitives.ShapeDrawer,Microsoft.Xna.Framework.Rectangle,System.Boolean)">
+            <summary>Slot vacio: recuadro donde se puede soltar una carta.</summary>
+        </member>
+        <member name="M:SnapClone.UI.Components.CardView.Draw(Microsoft.Xna.Framework.Graphics.SpriteBatch,SnapClone.UI.Primitives.ShapeDrawer,SnapClone.UI.Components.FontService,Microsoft.Xna.Framework.Rectangle,System.Boolean)">
+            <summary>Carta jugada en una locacion.</summary>
+        </member>
+        <member name="M:SnapClone.UI.Components.CardView.DrawInHand(Microsoft.Xna.Framework.Graphics.SpriteBatch,SnapClone.UI.Primitives.ShapeDrawer,SnapClone.UI.Components.FontService,Microsoft.Xna.Framework.Rectangle)">
+            <summary>Carta de la mano (muestra coste y poder).</summary>
+        </member>
+        <member name="M:SnapClone.UI.Components.CardView.DrawPerkBadge(Microsoft.Xna.Framework.Graphics.SpriteBatch,SnapClone.UI.Primitives.ShapeDrawer,SnapClone.UI.Components.FontService,Microsoft.Xna.Framework.Vector2,System.Single)">
+            <summary>Badge pequeno con el modificador total de los perks.</summary>
+        </member>
+        <member name="T:SnapClone.UI.Components.DetailPreviewView">
+            <summary>
+            Panel de detalle a pantalla completa para una carta o una zona.
+            Solo lee el estado: abrirlo nunca mueve una carta ni gasta energia.
+            </summary>
+        </member>
+        <member name="M:SnapClone.UI.Components.FontService.DrawTextCenteredFit(Microsoft.Xna.Framework.Graphics.SpriteBatch,System.String,Microsoft.Xna.Framework.Rectangle,Microsoft.Xna.Framework.Color,System.Single,System.Single)">
+            <summary>Dibuja centrado reduciendo la escala hasta que el texto quepa en el ancho.</summary>
+        </member>
+        <member name="T:SnapClone.UI.Components.LocationView">
+            <summary>
+            Una de las tres columnas de locacion: muestra la placa compacta entre
+            dos rejillas 2x2 (rival arriba, jugador abajo) y los totales de poder.
+            </summary>
+        </member>
+        <member name="P:SnapClone.UI.Components.LocationView.IsRevealed">
+            <summary>Una locacion oculta no muestra nombre, efecto ni arte.</summary>
+        </member>
+        <member name="M:SnapClone.UI.Components.LocationView.SetPower(System.Int32,System.Int32)">
+            <summary>
+            Copia los totales de la zona. Solo CombatScene.RefreshPowerTotals
+            escribe estos valores; la vista no suma cartas por su cuenta.
+            </summary>
+        </member>
+        <member name="T:SnapClone.UI.Components.Modal">
+            <summary>
+            Panel modal dibujado encima de la escena de combate.
+            Bloquea la interaccion con el tablero mientras esta visible.
+            </summary>
+        </member>
+        <member name="T:SnapClone.UI.Components.PileViewerView">
+            <summary>
+            Popover que muestra las pilas de un lado. Se abre desde el avatar,
+            conserva la pila y la pagina seleccionadas y solo lee el estado: nunca
+            mueve cartas.
+            </summary>
+        </member>
+        <member name="M:SnapClone.UI.Components.PileViewerView.HitTestCard(SnapClone.Core.Layout.LayoutManager,SnapClone.Gameplay.Cards.PileSet,Microsoft.Xna.Framework.Vector2)">
+            <summary>Carta visible bajo el puntero, o null si no hay ninguna.</summary>
+        </member>
+        <member name="T:SnapClone.UI.Components.SpaceBackground">
+            <summary>
+            Fondo espacial dibujado con gradientes y puntos procedurales.
+            Sin imagenes: todo son rectangulos y circulos generados en codigo.
+            </summary>
+        </member>
+        <member name="T:SnapClone.UI.Primitives.ShapeDrawer">
+            <summary>
+            Dibuja formas usando solo primitivas de MonoGame.
+            Las texturas (hexagono, circulo, panel biselado) se generan
+            proceduralmente en memoria: no se usa ninguna imagen externa.
+            </summary>
+        </member>
+    </members>
+</doc>

@@ -1,0 +1,2 @@
+drawable\snapclone_icon;drawable\snapclone_icon
+values\styles;values\styles
