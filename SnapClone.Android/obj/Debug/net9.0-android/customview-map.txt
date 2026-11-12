@@ -1,3 +1,0 @@
-item;obj\Debug\net9.0-android\res\values\styles.xml
-resources;obj\Debug\net9.0-android\res\values\styles.xml
-style;obj\Debug\net9.0-android\res\values\styles.xml
