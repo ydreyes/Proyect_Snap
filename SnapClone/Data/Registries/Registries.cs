@@ -381,16 +381,6 @@ namespace SnapClone.Data.Registries
             var errors = new List<string>();
             var ids = new HashSet<string>(StringComparer.Ordinal);
             var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var cardNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            if (cardRegistry != null)
-            {
-                foreach (var card in cardRegistry.GetAll())
-                {
-                    if (!string.IsNullOrWhiteSpace(card?.Name))
-                        cardNames.Add(card.Name);
-                }
-            }
 
             int normals = 0;
             int subBosses = 0;
@@ -417,12 +407,9 @@ namespace SnapClone.Data.Registries
 
                 if (string.IsNullOrWhiteSpace(enemy.Name))
                     errors.Add($"{enemy.Id}: nombre vacio.");
-                else
+                else if (!names.Add(enemy.Name))
                 {
-                    if (!names.Add(enemy.Name))
-                        errors.Add($"{enemy.Id}: nombre de enemigo duplicado '{enemy.Name}'.");
-                    if (cardNames.Contains(enemy.Name))
-                        errors.Add($"{enemy.Id}: el nombre reutiliza una carta jugable '{enemy.Name}'.");
+                    errors.Add($"{enemy.Id}: nombre de enemigo duplicado '{enemy.Name}'.");
                 }
 
                 if (enemy.Difficulty < 1 || enemy.Difficulty > 5)

@@ -36,7 +36,13 @@ namespace SnapClone.Harness
             EffectRegistry effects = new EffectRegistry();
             PerkRegistry perks = new PerkRegistry();
             ItemRegistry items = new ItemRegistry();
-            ContentLoader.LoadAll(cards, zones, effects, perks, itemRegistry: items);
+            EnemyRegistry enemies = new EnemyRegistry();
+            ModifierRegistry modifiers = new ModifierRegistry();
+            RunEventRegistry runEvents = new RunEventRegistry();
+            // Se cargan todos los catalogos, igual que Game1.Initialize, para
+            // que una validacion de arranque rota falle aqui y no solo en la APK.
+            ContentLoader.LoadAll(cards, zones, effects, perks, enemies,
+                modifiers, runEvents, items);
 
             RunPerkCatalogChecks(perks, cards, effects);
             RunPointsChecks();
