@@ -1,5 +1,6 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using SnapClone.Data.Definitions;
 using SnapClone.Gameplay.Cards;
 using SnapClone.UI.Primitives;
 
@@ -29,6 +30,12 @@ namespace SnapClone.UI.Components
         /// Solo afecta al dibujo de la mano.
         /// </summary>
         public bool IsAffordable { get; set; } = true;
+
+        /// <summary>Muestra la etiqueta del tema de draft (vista de draft).</summary>
+        public bool ShowDraftTheme { get; set; }
+
+        /// <summary>Muestra el indicador de carta movible en el tablero.</summary>
+        public bool ShowMoveBadge { get; set; }
 
         /// <summary>De donde salio la carta en el arrastre actual.</summary>
         public CardOrigin Origin { get; set; } = CardOrigin.Hand;
@@ -78,6 +85,18 @@ namespace SnapClone.UI.Components
         /// <summary>Carta jugada en una locacion.</summary>
         public void Draw(SpriteBatch spriteBatch, ShapeDrawer shapes, FontService fonts, Rectangle bounds, bool opponent)
         {
+            if (Card != null && Card.DelayedReveal)
+            {
+                shapes.DrawBeveledRectangle(
+                    new Rectangle(bounds.X + 2, bounds.Y + 3, bounds.Width,
+                        bounds.Height), Color.Black * 0.45f, 8);
+                shapes.DrawBeveledPanel(bounds, new Color(14, 18, 30),
+                    new Color(90, 104, 130), 3, 8);
+                fonts.DrawTextCentered(spriteBatch, "???", bounds,
+                    Color.White * 0.6f, 0.8f);
+                return;
+            }
+
             var frame = opponent
                 ? new Color(188, 84, 62)
                 : new Color(72, 126, 210);
@@ -109,6 +128,7 @@ namespace SnapClone.UI.Components
             fonts.DrawTextCentered(spriteBatch, power.ToString(), powerCenter, Color.White, 0.62f);
 
             DrawPerkBadge(spriteBatch, shapes, fonts, powerCenter, orbRadius);
+            DrawMoveBadge(spriteBatch, shapes, fonts, bounds, orbRadius);
 
             // Nombre (en el tablero el coste ya no se muestra)
             if (Card != null)
@@ -143,7 +163,7 @@ namespace SnapClone.UI.Components
             float orbRadius = bounds.Width * 0.24f;
             var costCenter = new Vector2(bounds.X + orbRadius * 0.9f, bounds.Y + orbRadius * 0.9f);
             var powerCenter = new Vector2(bounds.Right - orbRadius * 0.9f, bounds.Y + orbRadius * 0.9f);
-            int cost = Card != null ? Card.Definition.Cost : 0;
+            int cost = Card != null ? Card.EffectiveCost : 0;
             int power = Card != null ? Card.CurrentPower : 0;
 
             shapes.DrawCircleFramed(costCenter, orbRadius, new Color(38, 86, 176), new Color(160, 200, 255), 2f);
@@ -153,6 +173,8 @@ namespace SnapClone.UI.Components
             fonts.DrawTextCentered(spriteBatch, power.ToString(), powerCenter, Color.White, 0.6f);
 
             DrawPerkBadge(spriteBatch, shapes, fonts, powerCenter, orbRadius);
+            DrawUpgradeBadge(spriteBatch, shapes, fonts, bounds, orbRadius);
+            DrawThemeBadge(spriteBatch, shapes, fonts, bounds);
 
             var nameRect = new Rectangle(bounds.X + 2, bounds.Bottom - (int)(bounds.Height * 0.24f), bounds.Width - 4, (int)(bounds.Height * 0.22f));
             shapes.DrawRectangle(nameRect, Color.Black * 0.5f);
@@ -163,6 +185,52 @@ namespace SnapClone.UI.Components
 
             if (!IsAffordable)
                 shapes.DrawRectangle(bounds, Color.Black * 0.45f);
+        }
+
+        /// <summary>Etiqueta del tema de draft sobre la banda de arte.</summary>
+        private void DrawThemeBadge(SpriteBatch spriteBatch, ShapeDrawer shapes,
+            FontService fonts, Rectangle bounds)
+        {
+            if (!ShowDraftTheme || Card?.Definition == null) return;
+            if (!Card.Definition.DraftTheme.HasValue) return;
+
+            var theme = Card.Definition.DraftTheme.Value;
+            var themeRect = new Rectangle(
+                bounds.X + 4,
+                bounds.Bottom - (int)(bounds.Height * 0.325f),
+                bounds.Width - 8,
+                System.Math.Max(10, (int)(bounds.Height * 0.075f)));
+
+            shapes.DrawRectangle(themeRect, Color.Black * 0.5f);
+            fonts.DrawTextCenteredFit(spriteBatch, DraftThemeText.Label(theme),
+                themeRect, DraftThemeColor(theme), 0.32f, 0.18f);
+        }
+
+        /// <summary>Color estable por tema para la etiqueta de draft.</summary>
+        public static Color DraftThemeColor(DraftTheme theme)
+        {
+            switch (theme)
+            {
+                case DraftTheme.Control: return new Color(140, 190, 250);
+                case DraftTheme.Destroy: return new Color(240, 150, 130);
+                case DraftTheme.OnReveal: return new Color(180, 225, 155);
+                default: return new Color(210, 210, 220);
+            }
+        }
+
+        /// <summary>Indicador discreto de carta movible.</summary>
+        private void DrawMoveBadge(SpriteBatch spriteBatch, ShapeDrawer shapes,
+            FontService fonts, Rectangle bounds, float orbRadius)
+        {
+            if (!ShowMoveBadge || Card == null) return;
+
+            var center = new Vector2(bounds.X + orbRadius * 0.9f,
+                bounds.Y + orbRadius * 0.9f);
+            float radius = orbRadius * 0.55f;
+
+            shapes.DrawCircleFramed(center, radius,
+                new Color(32, 92, 112), new Color(140, 230, 240), 1.5f);
+            fonts.DrawTextCentered(spriteBatch, "M", center, Color.White, 0.30f);
         }
 
         /// <summary>Badge pequeno con el modificador total de los perks.</summary>
@@ -181,6 +249,20 @@ namespace SnapClone.UI.Components
 
             shapes.DrawCircleFramed(center, radius, fill, border, 1.5f);
             fonts.DrawTextCentered(spriteBatch, text, center, Color.White, 0.34f);
+        }
+
+        /// <summary>Marca discreta de mejoras permanentes de la run.</summary>
+        private void DrawUpgradeBadge(SpriteBatch spriteBatch, ShapeDrawer shapes,
+            FontService fonts, Rectangle bounds, float orbRadius)
+        {
+            if (Card == null || !Card.HasUpgrades) return;
+
+            var center = new Vector2(bounds.Center.X, bounds.Y + orbRadius * 0.9f);
+            float radius = orbRadius * 0.52f;
+
+            shapes.DrawCircleFramed(center, radius,
+                new Color(112, 82, 24), new Color(240, 204, 120), 1.5f);
+            fonts.DrawTextCentered(spriteBatch, $"+{Card.UpgradeCount}", center, Color.White, 0.30f);
         }
     }
 }

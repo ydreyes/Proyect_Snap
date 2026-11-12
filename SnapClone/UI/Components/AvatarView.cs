@@ -43,7 +43,8 @@ namespace SnapClone.UI.Components
                 (int)(Bounds.Height * 0.30f));
 
             shapes.DrawBeveledPanel(banner, new Color(18, 22, 38), Accent, 2, 8);
-            fonts.DrawTextCentered(spriteBatch, Name.ToUpperInvariant(), banner, Color.White, 0.55f);
+            fonts.DrawTextCenteredFit(spriteBatch, Name.ToUpperInvariant(), banner,
+                Color.White, 0.55f, 0.30f);
         }
     }
 }

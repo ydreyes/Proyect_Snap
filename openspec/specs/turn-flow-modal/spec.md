@@ -38,12 +38,19 @@ The system SHALL display the player's remaining energy for the current turn.
 - **AND** it SHALL reset to the turn's pool when a new turn starts
 
 ### Requirement: Run Progress Display
-The system SHALL display run progress in the combat top bar.
+The system SHALL display act and combat progress in the combat top bar.
 
 #### Scenario: Combat and lives display
 - **WHEN** a combat is in progress
-- **THEN** the top bar SHALL show the current combat number out of 15
-- **AND** it SHALL show the remaining lives
+- **THEN** the top bar SHALL show the current act
+- **AND** it SHALL show the current combat position inside the act
+- **AND** it SHALL show the current level and money
+- **AND** it SHALL NOT show a lives counter
+
+#### Scenario: Final act display
+- **WHEN** the run reaches the final act
+- **THEN** the top bar SHALL show the final-act step or the boss encounter instead of a normal combat position
+- **AND** the level and money SHALL remain visible
 
 ### Requirement: Turn 6 Evaluation
 The system SHALL evaluate the game at turn 6.

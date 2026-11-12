@@ -21,8 +21,13 @@
     <EmbeddedResource Include="Icon.bmp">
       <LogicalName>Icon.bmp</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="Content\Fonts\*.ttf"
+                      LogicalName="SnapClone.Content.Fonts.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Content\Fonts\*.txt"
+                      LogicalName="SnapClone.Content.Fonts.%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="FontStashSharp.MonoGame" Version="1.6.2" />
     <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.*" />
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.*" />
   </ItemGroup>

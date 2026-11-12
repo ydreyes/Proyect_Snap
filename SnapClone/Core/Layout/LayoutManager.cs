@@ -127,7 +127,14 @@ namespace SnapClone.Core.Layout
         // Mano, boton de turno y energia
         // ------------------------------------------------------------------
 
-        public Rectangle HandArea => Percent(0f, 0.765f, 1f, 0.235f);
+        /// <summary>
+        /// Franja de objetos entre los controles de turno y la mano. No se
+        /// solapa con el tablero (termina en 0.718), el boton de turno
+        /// (termina en 0.758) ni la mano (empieza en 0.820).
+        /// </summary>
+        public Rectangle ItemBar => Percent(0.015f, 0.760f, 0.97f, 0.056f);
+
+        public Rectangle HandArea => Percent(0f, 0.820f, 1f, 0.180f);
 
         public Rectangle GetHandCard(int index, int count)
         {

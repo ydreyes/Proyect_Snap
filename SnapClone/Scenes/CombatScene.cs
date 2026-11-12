@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using SnapClone.Core.Services;
 using SnapClone.Core.Layout;
+using SnapClone.Data.Definitions;
 using SnapClone.Data.Registries;
 using SnapClone.Effects;
 using SnapClone.Gameplay.Actions;
@@ -12,7 +14,9 @@ using SnapClone.Gameplay.AI;
 using SnapClone.Gameplay.Board;
 using SnapClone.Gameplay.Cards;
 using SnapClone.Gameplay.Combat;
+using SnapClone.Gameplay.Meta;
 using SnapClone.Gameplay.Run;
+using SnapClone.Persistence;
 using SnapClone.UI.Primitives;
 using SnapClone.UI.Components;
 
@@ -26,7 +30,6 @@ namespace SnapClone.Scenes
     public class CombatScene : IScene
     {
         private const int StartingHandSize = 3;
-        private const int RivalDeckSize = 8;
 
         private readonly GraphicsDevice _graphicsDevice;
         private readonly SpriteBatch _spriteBatch;
@@ -45,9 +48,16 @@ namespace SnapClone.Scenes
         private BoardState _boardState;
         private TurnManager _turnManager;
         private AIController _aiController;
-        private ProgressionManager _progressionManager;
+        private RunDirector _runDirector;
         private RunState _runState;
-        private string _matchResult = string.Empty;
+        private RunCheckpointService _checkpoint;
+        private string _nextScene = "Summary";
+
+        // Posicion mostrada en la cabecera. Se congela al entrar para que el
+        // HUD no salte cuando el resultado ya avanzo el grafo bajo el modal.
+        private int _hudAct = 1;
+        private int _hudCombatIndexInAct = 0;
+        private int _hudFinalActStep = 0;
         private readonly List<LocationView> _locations = new List<LocationView>();
         private readonly List<CardView> _handViews = new List<CardView>();
         private readonly List<DropZone> _dropZones = new List<DropZone>();
@@ -57,6 +67,13 @@ namespace SnapClone.Scenes
         private int _lastSyncedVersion;
         private PileViewerView _pileViewer;
         private DetailPreviewView _detailPreview;
+
+        private ItemRegistry _itemRegistry;
+        private CombatItemSystem _itemSystem;
+        private ProfileDto _profile;
+        private string _itemMessage;
+        private bool _itemMessageIsError;
+        private double _itemMessageUntil;
 
         private CardView _draggedCard;
         private Vector2 _dragOffset;
@@ -76,6 +93,7 @@ namespace SnapClone.Scenes
         private int _pressSlot = -1;
 
         private bool _gameEvaluated;
+        private bool _agathaPlaying;
 
         public CombatScene(GraphicsDevice graphicsDevice, SpriteBatch spriteBatch, GameServices services, SceneManager sceneManager)
         {
@@ -118,7 +136,10 @@ namespace SnapClone.Scenes
             _draggedCard = null;
             _hoverZone = -1;
             _hoverSlot = -1;
-            _matchResult = string.Empty;
+            _nextScene = "Summary";
+            _itemMessage = null;
+            _itemMessageIsError = false;
+            _itemMessageUntil = 0;
 
             _boardState = new BoardState();
 
@@ -129,8 +150,12 @@ namespace SnapClone.Scenes
             _effectProcessor = new EffectProcessor(effectRegistry, cardRegistry,
                 _services.Get<RandomService>());
             _powerResolver = new PowerResolver(perkRegistry, _effectProcessor);
-            _progressionManager = _services.Get<ProgressionManager>();
+            _runDirector = _services.Get<RunDirector>();
             _runState = _services.Get<RunState>();
+            _checkpoint = _services.Get<RunCheckpointService>();
+            _hudAct = _runState.ActIndex;
+            _hudCombatIndexInAct = _runState.CombatIndexInAct;
+            _hudFinalActStep = _runState.FinalActStep;
 
             BuildBoard();
             _boardState.PowerResolver = _powerResolver;
@@ -145,9 +170,17 @@ namespace SnapClone.Scenes
                 _effectProcessor, _runState, zoneRegistry);
             _lastSyncedVersion = _boardState.Version;
 
-            _turnManager = new TurnManager(_boardState, _services.Get<TimeService>(), _powerResolver, _effectProcessor);
+            _itemRegistry = _services.Has<ItemRegistry>()
+                ? _services.Get<ItemRegistry>()
+                : null;
+            _profile = _checkpoint?.Profile;
+            _itemSystem = new CombatItemSystem(_boardState, _actionService,
+                _effectProcessor, _itemRegistry, _services.Get<RandomService>());
+
+            _turnManager = new TurnManager(_boardState, _services.Get<TimeService>(),
+                _powerResolver, _effectProcessor, _runState);
             _aiController = new AIController(_boardState, _services.Get<RandomService>(),
-                _actionService, _turnManager);
+                _actionService, _turnManager, _runState?.PendingCombat?.Difficulty ?? 1);
 
             _actionService.StartCombat();
             _turnManager.StartTurn();
@@ -209,9 +242,10 @@ namespace SnapClone.Scenes
                 Accent = new Color(72, 126, 210)
             };
 
+            string rivalName = _runState?.PendingCombat?.EnemyName;
             _rivalAvatar = new AvatarView
             {
-                Name = "RIVAL",
+                Name = string.IsNullOrWhiteSpace(rivalName) ? "ENEMIGO" : rivalName,
                 Bounds = _layoutManager.RightAvatar,
                 IsPlayer = false,
                 Accent = new Color(188, 84, 62)
@@ -269,15 +303,47 @@ namespace SnapClone.Scenes
 
             ShuffleDeck(_boardState.PlayerDeck, _services.Get<RandomService>());
 
-            var rivalDefs = GetCardDefinitions();
-            var random = _services.Get<RandomService>();
-            for (int i = 0; i < RivalDeckSize && rivalDefs.Count > 0; i++)
+            // El mazo rival es el mazo fijo del enemigo elegido; la semilla
+            // del intento solo decide el orden inicial.
+            var pending = _runState?.PendingCombat;
+            int shuffleSeed = pending?.Seed ?? 0;
+
+            var cardRegistry = _services.Has<CardRegistry>()
+                ? _services.Get<CardRegistry>()
+                : null;
+            var enemy = ResolveEnemy(pending);
+            var rivalDefs = EnemyDeckBuilder.BuildShuffledDefs(cardRegistry, enemy,
+                shuffleSeed);
+
+            foreach (var def in rivalDefs)
             {
-                var card = new CardInstance(rivalDefs[random.Next(rivalDefs.Count)]);
+                var card = new CardInstance(def);
                 card.Location = CardLocation.Deck;
                 _powerResolver.ResolveCard(card);
                 _boardState.AIDeck.Add(card);
             }
+        }
+
+        /// <summary>
+        /// Resuelve el enemigo del snapshot. Si el id no existe, cae al primer
+        /// enemigo del acto actual para no volver al pool aleatorio de cartas.
+        /// </summary>
+        private EnemyDef ResolveEnemy(PendingCombat pending)
+        {
+            var registry = _services.Has<EnemyRegistry>()
+                ? _services.Get<EnemyRegistry>()
+                : null;
+
+            if (registry == null) return null;
+
+            var enemy = registry.Get(pending?.EnemyId);
+            if (enemy != null) return enemy;
+
+            int actIndex = _runState?.ActIndex ?? 1;
+            var pool = registry.GetByAct(actIndex);
+            if (pool.Count > 0) return pool[0];
+
+            return registry.GetFinalBoss();
         }
 
         private List<Data.Definitions.CardDef> GetCardDefinitions()
@@ -289,14 +355,14 @@ namespace SnapClone.Scenes
 
         private int RandomIndex(int count) => _services.Get<RandomService>().Next(count);
 
-        private static void ShuffleDeck(List<CardInstance> deck, RandomService random)
+        private static void ShuffleDeck<T>(List<T> deck, RandomService random)
         {
             if (deck == null || random == null) return;
 
             for (int i = deck.Count - 1; i > 0; i--)
             {
                 int j = random.Next(i + 1);
-                var tmp = deck[i];
+                T tmp = deck[i];
                 deck[i] = deck[j];
                 deck[j] = tmp;
             }
@@ -304,8 +370,9 @@ namespace SnapClone.Scenes
 
         private void DealStartingHands()
         {
-            OpeningHandDealer.Deal(_boardState.PlayerDeck, _boardState.PlayerHand, StartingHandSize);
-            OpeningHandDealer.Deal(_boardState.AIDeck, _boardState.AIHand, StartingHandSize);
+            int handSize = RunModifierSystem.StartingHandSizeFor(_runState, StartingHandSize);
+            OpeningHandDealer.Deal(_boardState.PlayerDeck, _boardState.PlayerHand, handSize);
+            OpeningHandDealer.Deal(_boardState.AIDeck, _boardState.AIHand, handSize);
         }
 
         /// <summary>
@@ -322,6 +389,56 @@ namespace SnapClone.Scenes
             {
                 var zone = _boardState.Zones[i];
                 _locations[i].SetPower(zone.GetPlayerPower(), zone.GetAIPower());
+                _locations[i].StatusText = GetZoneStatus(zone);
+                RefreshMoveBadges(_locations[i]);
+            }
+        }
+
+        private string GetZoneStatus(ZoneInstance zone)
+        {
+            if (zone == null) return string.Empty;
+
+            bool flooded = zone.IsFlooded(_turnManager?.CurrentTurn ??
+                _boardState.CurrentTurn);
+            bool locked = _effectProcessor != null &&
+                _effectProcessor.IsZonePlayLocked(zone);
+            bool suppressed = _boardState.AreZoneEffectsSuppressed(
+                _turnManager?.CurrentTurn ?? _boardState.CurrentTurn);
+            bool limbo = zone.Definition != null &&
+                zone.Definition.Id == "zone_limbo";
+            bool goose = zone.PlayerCards.Concat(zone.AICards).Any(card =>
+                card != null && !card.AbilitiesDisabled &&
+                SnapClone.Gameplay.Meta.PerkAbilities.HasEffect(card,
+                    "effect_goose"));
+            bool jean = zone.PlayerCards.Concat(zone.AICards).Any(card =>
+                card != null && !card.AbilitiesDisabled &&
+                SnapClone.Gameplay.Meta.PerkAbilities.HasEffect(card,
+                    "effect_jean_grey"));
+
+            if (limbo) return "LIMBO";
+            if (suppressed) return "SILENCIADA";
+            if (goose) return "GOOSE";
+            if (jean) return "JEAN GREY";
+            if (flooded && locked) return "INUNDADA / BLOQUEADA";
+            if (flooded) return "INUNDADA";
+            if (locked) return "BLOQUEADA";
+            return string.Empty;
+        }
+
+        private void RefreshMoveBadges(LocationView location)
+        {
+            if (location == null || _actionService == null) return;
+
+            for (int slot = 0; slot < LocationView.SlotsPerSide; slot++)
+            {
+                var view = location.PlayerSlotCards[slot];
+                if (view?.Card == null)
+                    continue;
+
+                string status = _actionService.GetMoveStatus(view.Card,
+                    BoardSide.Player);
+                view.ShowMoveBadge = status == "MOVIBLE" ||
+                    status == "MOVIBLE A CLOAK";
             }
         }
 
@@ -552,13 +669,59 @@ namespace SnapClone.Scenes
             _boardState.PlayerPiles.Contains(card) || _boardState.AIPiles.Contains(card);
 
         // ------------------------------------------------------------------
+        // Barra de objetos
+        // ------------------------------------------------------------------
+
+        private bool HandleItemBarInput(Vector2 point, GameTime gameTime)
+        {
+            if (_itemSystem == null || _profile == null) return false;
+
+            var items = _itemSystem.GetInventory(_profile);
+            if (items.Count == 0) return false;
+
+            var bar = _layoutManager.ItemBar;
+            if (!IsInside(bar, point)) return false;
+
+            float slotWidth = bar.Width / (float)items.Count;
+            int index = (int)((point.X - bar.X) / slotWidth);
+            if (index < 0) index = 0;
+            if (index >= items.Count) index = items.Count - 1;
+
+            var item = items[index];
+            var result = _itemSystem.TryUse(item.Id, _profile, true,
+                profile => _checkpoint.SaveProfile(out _));
+
+            if (result.Success)
+                ShowItemMessage($"Usaste {item.Name}.", false, gameTime);
+            else
+                ShowItemMessage(result.Error, true, gameTime);
+
+            // El efecto ya se aplico: las vistas, el poder y los contadores se
+            // reconcilian en el mismo frame.
+            SyncViewsIfDirty();
+            RefreshPowerTotals();
+            UpdateViewLayout();
+            return true;
+        }
+
+        private void ShowItemMessage(string message, bool isError, GameTime gameTime)
+        {
+            _itemMessage = message;
+            _itemMessageIsError = isError;
+            _itemMessageUntil = gameTime.TotalGameTime.TotalSeconds + 2.5;
+        }
+
+        // ------------------------------------------------------------------
         // Update
         // ------------------------------------------------------------------
 
         public void Update(GameTime gameTime)
         {
             var input = _services.Get<InputService>();
-            input.Update();
+
+            if (_itemMessage != null &&
+                gameTime.TotalGameTime.TotalSeconds >= _itemMessageUntil)
+                _itemMessage = null;
 
             _layoutManager.CalculateLayout();
             SyncViewsIfDirty();
@@ -569,8 +732,7 @@ namespace SnapClone.Scenes
                 if (input.IsLeftMousePressed() && _modal.IsButtonClicked(input.MousePosition))
                 {
                     _modal.Hide();
-                    string target = _progressionManager.ResolveCombat(_matchResult);
-                    _sceneManager.ChangeScene(target);
+                    _sceneManager.ChangeScene(_nextScene);
                 }
                 return;
             }
@@ -605,6 +767,11 @@ namespace SnapClone.Scenes
             }
 
             if (input.IsLeftMousePressed() && TryOpenPileViewer(input.MousePosition))
+                return;
+
+            if (input.IsLeftMousePressed() &&
+                _turnManager.CurrentPhase == TurnPhase.PlayPhase &&
+                HandleItemBarInput(input.MousePosition, gameTime))
                 return;
 
             if (_turnManager.CurrentPhase == TurnPhase.PlayPhase)
@@ -701,6 +868,19 @@ namespace SnapClone.Scenes
             if (!input.IsLeftMousePressed()) return;
 
             var mouse = input.MousePosition;
+
+            if (_detailPreview.CanActivate &&
+                _detailPreview.Card != null &&
+                IsInside(_detailPreview.GetActivateBounds(_layoutManager), mouse))
+            {
+                _actionService.ActivateCard(_detailPreview.Card,
+                    BoardSide.Player);
+                _detailPreview.Close();
+                RefreshHandViews();
+                RefreshPowerTotals();
+                UpdateViewLayout();
+                return;
+            }
 
             // Cualquier toque fuera del contenido cierra el panel; el boton de
             // cierre queda dentro y solo actua sobre el.
@@ -852,15 +1032,32 @@ namespace SnapClone.Scenes
         {
             if (_pressCard != null)
             {
-                _detailPreview.OpenCard(_pressCard, _pressSide);
+                string status = _pressSide == BoardSide.Player
+                    ? _actionService?.GetMoveStatus(_pressCard, _pressSide)
+                    : null;
+
+                if (_pressSide == BoardSide.Player &&
+                    _pressCard.Definition?.Id == "card_howard")
+                {
+                    var top = _boardState.PlayerDeck.FirstOrDefault();
+                    status = "TOPE: " + (top?.Definition?.Name ?? "VACIO");
+                }
+
+                _detailPreview.CanActivate = _pressSide == BoardSide.Player &&
+                    _effectProcessor != null &&
+                    _effectProcessor.CanActivate(_pressCard);
+                _detailPreview.OpenCard(_pressCard, _pressSide, status);
                 return;
             }
+
+            _detailPreview.CanActivate = false;
 
             if (_pressZone >= 0 &&
                 _pressZone < _boardState.Zones.Count &&
                 _pressZone < _locations.Count)
             {
-                _detailPreview.OpenZone(_boardState.Zones[_pressZone]);
+                var zone = _boardState.Zones[_pressZone];
+                _detailPreview.OpenZone(zone, GetZoneStatus(zone));
             }
         }
 
@@ -897,11 +1094,10 @@ namespace SnapClone.Scenes
         {
             if (view?.Card == null) return;
 
-            // Una carta del tablero solo se puede levantar durante el turno en
-            // que se jugo. Las de turnos anteriores quedan bloqueadas en su
-            // slot: no van a la mano ni cambian de zona.
+            // Una carta del tablero se puede levantar el turno en que se jugo,
+            // o despues si tiene un permiso impreso o una ventana de Cloak.
             if (origin == CardOrigin.Board &&
-                view.Card.PlayedTurn != _turnManager.CurrentTurn)
+                !_actionService.CanLiftForMove(view.Card, BoardSide.Player))
                 return;
 
             view.Origin = origin;
@@ -1033,15 +1229,15 @@ namespace SnapClone.Scenes
             bool cameFromHand = view.Origin == CardOrigin.Hand;
 
             if (cameFromHand &&
-                view.Card.Definition.Cost > _turnManager.PlayerAvailableEnergy)
+                view.Card.EffectiveCost > _turnManager.PlayerAvailableEnergy)
                 return false;
 
             ActionResult action;
             if (cameFromHand)
                 action = _actionService.PlayCard(view.Card, BoardSide.Player, zone, slot);
             else
-                action = _actionService.MoveCard(view.Card, BoardSide.Player,
-                    view.OriginZone, zone);
+                action = _actionService.MoveCardByPlayer(view.Card,
+                    BoardSide.Player, view.OriginZone, zone);
 
             if (!action.Success) return false;
 
@@ -1171,6 +1367,66 @@ namespace SnapClone.Scenes
             PlayAIAll();
             RefreshPowerTotals();
             UpdateViewLayout();
+
+            if (_boardState.AgathaControlsEvenTurns && !_gameEvaluated &&
+                _turnManager.CurrentTurn % 2 == 0 && !_agathaPlaying)
+            {
+                PlayAgathaTurn();
+            }
+        }
+
+        /// <summary>
+        /// Agatha juega los turnos pares del jugador con la misma consulta de
+        /// legalidad que la accion manual y luego cierra el turno.
+        /// </summary>
+        private void PlayAgathaTurn()
+        {
+            _agathaPlaying = true;
+            try
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    CardInstance chosen = null;
+                    ZoneInstance target = null;
+
+                    foreach (var card in _boardState.PlayerHand.ToList())
+                    {
+                        if (_actionService == null ||
+                            !_actionService.CanPlayCard(card, BoardSide.Player))
+                            continue;
+                        if (_actionService.GetEffectiveCost(card,
+                                BoardSide.Player) >
+                            _turnManager.PlayerAvailableEnergy)
+                            continue;
+
+                        var zone = _boardState.Zones.FirstOrDefault(z =>
+                            _actionService.CanPlayCardInZone(card,
+                                BoardSide.Player, z));
+                        if (zone == null) continue;
+
+                        chosen = card;
+                        target = zone;
+                        break;
+                    }
+
+                    if (chosen == null || target == null) break;
+
+                    var result = _actionService.PlayCard(chosen,
+                        BoardSide.Player, target.ZoneIndex,
+                        target.PlayerCards.Count);
+                    if (result == null || !result.Success) break;
+
+                    RefreshHandViews();
+                    RefreshPowerTotals();
+                    UpdateViewLayout();
+                }
+            }
+            finally
+            {
+                _agathaPlaying = false;
+            }
+
+            EndTurn();
         }
 
         /// <summary>
@@ -1216,11 +1472,27 @@ namespace SnapClone.Scenes
             // Un combate puede terminar antes del turno 3. El resultado se
             // calcula con informacion completa, asi que se revela lo que falte.
             _turnManager.RevealAllZones();
+            _effectProcessor?.ResolveEndOfGame(_boardState);
 
             RefreshPowerTotals();
 
             string result = _victoryResolver.Evaluate(_boardState);
-            _matchResult = result;
+
+            // El resultado se aplica aqui, antes de que el modal se cierre.
+            // La instantanea del combate impide aplicarlo dos veces.
+            bool applied = _runDirector != null && _runDirector.ApplyCombatResult(result);
+            _nextScene = applied ? _runDirector.GetNextScene() : "Summary";
+
+            // El checkpoint se escribe antes de mostrar el modal, para que
+            // cerrar la app no repita recompensas. Un reintento por vida extra
+            // conserva el nodo de combate y guarda la carga consumida.
+            if (applied)
+            {
+                if (_runDirector.GetNextNode() == RunNode.Combat)
+                    _checkpoint.SavePreCombat();
+                else
+                    _checkpoint.SaveAfterCombat();
+            }
 
             int playerTotal = 0;
             int rivalTotal = 0;
@@ -1233,7 +1505,15 @@ namespace SnapClone.Scenes
             string title;
             Color accent;
 
-            if (result == "Player")
+            bool extraLifeRepeat = applied && result != "Player" &&
+                                   _runDirector.GetNextNode() == RunNode.Combat;
+
+            if (extraLifeRepeat)
+            {
+                title = "VIDA EXTRA";
+                accent = new Color(224, 196, 128);
+            }
+            else if (result == "Player")
             {
                 title = "VICTORIA";
                 accent = new Color(96, 196, 132);
@@ -1249,7 +1529,11 @@ namespace SnapClone.Scenes
                 accent = new Color(196, 168, 92);
             }
 
-            _modal.Show(title, $"Jugador {playerTotal}  -  Rival {rivalTotal}", accent);
+            string detail = extraLifeRepeat
+                ? $"FIN DE LA PARTIDA. Repites contra el mismo rival. Jugador {playerTotal}  -  Rival {rivalTotal}"
+                : $"FIN DE LA PARTIDA. Jugador {playerTotal}  -  Rival {rivalTotal}";
+
+            _modal.Show(title, detail, accent);
         }
 
         // ------------------------------------------------------------------
@@ -1274,6 +1558,7 @@ namespace SnapClone.Scenes
             DrawHoverHighlight();
 
             DrawTurnControls(spriteBatch);
+            DrawItemBar(spriteBatch);
             DrawHand(spriteBatch);
 
             if (_draggedCard != null)
@@ -1327,23 +1612,57 @@ namespace SnapClone.Scenes
             var runRect = new Rectangle(banner.X, turnRect.Bottom, banner.Width, (int)(banner.Height * 0.32f));
             var timerRect = new Rectangle(banner.X, runRect.Bottom, banner.Width, (int)(banner.Height * 0.30f));
 
-            int displayTurn = Math.Min(_turnManager.CurrentTurn, TurnManager.MaxTurns);
+            int maxTurns = TurnManager.MaxTurnsFor(_boardState);
+            int displayTurn = Math.Min(_turnManager.CurrentTurn, maxTurns);
             _fontService.DrawTextCentered(spriteBatch,
-                $"TURNO {displayTurn} / {TurnManager.MaxTurns}",
+                $"TURNO {displayTurn} / {maxTurns}",
                 turnRect, Color.White, 0.8f);
 
-            int combatNumber = _runState != null ? _runState.CurrentCombatNumber : 1;
-            int lives = _runState != null ? _runState.LivesRemaining : 0;
-
-            _fontService.DrawTextCentered(spriteBatch,
-                $"COMBATE {combatNumber}/{RunState.MaxCombats}   VIDAS {lives}",
-                runRect, new Color(224, 196, 128), 0.55f);
+            _fontService.DrawTextCenteredFit(spriteBatch, BuildRunStatus(), runRect,
+                new Color(224, 196, 128), 0.48f, 0.28f);
 
             string timerText = _turnManager.CurrentPhase == TurnPhase.PlayPhase
                 ? $"{(int)MathF.Ceiling(_services.Get<TimeService>().TurnTimeRemaining)}s"
                 : "--";
 
             _fontService.DrawTextCentered(spriteBatch, timerText, timerRect, new Color(196, 214, 240), 0.68f);
+        }
+
+        /// <summary>
+        /// Acto y posicion del combate, mas nivel y dinero. En el acto final
+        /// se muestra el paso o el jefe concreto en vez de la posicion normal.
+        /// </summary>
+        private string BuildRunStatus()
+        {
+            int level = _runState != null ? _runState.Level : 1;
+            int money = _runState != null ? _runState.Money : 0;
+            string status = _hudAct >= RunActTable.FinalAct
+                ? BuildFinalActStatus(level, money)
+                : $"ACTO {_hudAct} - COMBATE {_hudCombatIndexInAct + 1}/" +
+                  $"{RunActTable.CombatsPerAct}   NIVEL {level}   DINERO {money}";
+
+            bool daredevil = _boardState.CurrentTurn == 5 &&
+                _boardState.PlayerHand.Concat(_boardState.PlayerDeck)
+                    .Any(card => card != null &&
+                        SnapClone.Gameplay.Meta.PerkAbilities.HasEffect(card,
+                            "effect_daredevil"));
+
+            return daredevil
+                ? status + "   DAREDEVIL: VES LAS JUGADAS RIVALES"
+                : status;
+        }
+
+        private string BuildFinalActStatus(int level, int money)
+        {
+            string step;
+            if (_hudFinalActStep >= 3)
+                step = "JEFE FINAL";
+            else if (_hudFinalActStep == 2)
+                step = "SUBJEFE 4";
+            else
+                step = $"PASO {_hudFinalActStep + 1}/4";
+
+            return $"ACTO FINAL - {step}   NIVEL {level}   DINERO {money}";
         }
 
         private void DrawHoverHighlight()
@@ -1375,12 +1694,113 @@ namespace SnapClone.Scenes
             var fill = enabled ? new Color(30, 104, 74) : new Color(38, 52, 46);
             var border = enabled ? new Color(126, 214, 170) : new Color(96, 116, 106);
 
-            int displayTurn = Math.Min(_turnManager.CurrentTurn, TurnManager.MaxTurns);
+            int maxTurns = TurnManager.MaxTurnsFor(_boardState);
+            int displayTurn = Math.Min(_turnManager.CurrentTurn, maxTurns);
 
             _shapeDrawer.DrawBeveledPanel(button, fill, border, 3, 12);
             _fontService.DrawTextCentered(spriteBatch,
-                $"FINALIZAR TURNO {displayTurn}/{TurnManager.MaxTurns}",
+                $"FINALIZAR TURNO {displayTurn}/{maxTurns}",
                 button, enabled ? Color.White : new Color(190, 200, 196), 0.7f);
+        }
+
+        /// <summary>
+        /// Barra compacta de objetos con icono de rareza, resumen del efecto y
+        /// contador. Solo aparece en la fase del jugador y con inventario.
+        /// </summary>
+        private void DrawItemBar(SpriteBatch spriteBatch)
+        {
+            if (_itemSystem == null || _profile == null || _turnManager == null)
+                return;
+
+            if (_turnManager.CurrentPhase != TurnPhase.PlayPhase || _gameEvaluated)
+                return;
+
+            var items = _itemSystem.GetInventory(_profile);
+            if (items.Count == 0) return;
+
+            var bar = _layoutManager.ItemBar;
+            _shapeDrawer.DrawRectangle(bar, new Color(10, 14, 26) * 0.88f);
+            _shapeDrawer.DrawRectangleBorder(bar,
+                new Color(120, 150, 210) * 0.65f, 1);
+
+            float slotWidth = bar.Width / (float)items.Count;
+
+            for (int i = 0; i < items.Count; i++)
+            {
+                var item = items[i];
+                var slot = new Rectangle(
+                    bar.X + (int)(i * slotWidth),
+                    bar.Y,
+                    (int)slotWidth,
+                    bar.Height);
+
+                bool canUse = _itemSystem.CheckUse(item.Id, _profile, true).CanUse;
+                bool enabled = canUse && !_itemSystem.IsBusy;
+
+                var accent = item.Rarity == ItemRarity.Rare
+                    ? new Color(214, 186, 120)
+                    : new Color(142, 196, 230);
+
+                var fill = enabled
+                    ? new Color(24, 42, 64)
+                    : new Color(32, 36, 44);
+                var border = enabled ? accent : new Color(96, 102, 112);
+
+                _shapeDrawer.DrawBeveledPanel(slot, fill, border, 1, 5);
+
+                int iconSize = Math.Max(8, Math.Min(slot.Height - 6,
+                    (int)(slot.Width * 0.34f)));
+                var icon = new Rectangle(slot.X + 3,
+                    slot.Y + (slot.Height - iconSize) / 2, iconSize, iconSize);
+                _shapeDrawer.DrawRectangle(icon, border * 0.85f);
+
+                string initial = string.IsNullOrWhiteSpace(item.Name)
+                    ? "?"
+                    : item.Name.Substring(0, 1).ToUpperInvariant();
+                _fontService.DrawTextCentered(spriteBatch, initial, icon,
+                    enabled ? Color.White : new Color(186, 190, 198),
+                    Math.Max(0.25f, iconSize / (float)bar.Height * 0.8f));
+
+                int countWidth = Math.Max(12, (int)(slot.Width * 0.28f));
+                var summaryRect = new Rectangle(
+                    icon.Right + 2,
+                    slot.Y + 1,
+                    Math.Max(1, slot.Width - iconSize - countWidth - 8),
+                    slot.Height - 2);
+                var countRect = new Rectangle(
+                    slot.Right - countWidth - 2,
+                    slot.Y + 1,
+                    countWidth,
+                    slot.Height - 2);
+
+                _fontService.DrawTextCenteredFit(spriteBatch,
+                    CombatItemSystem.SummaryFor(item.EffectId), summaryRect,
+                    enabled ? new Color(220, 230, 244) : new Color(150, 156, 166),
+                    0.34f, 0.16f);
+
+                _fontService.DrawTextCenteredFit(spriteBatch,
+                    "x" + _itemSystem.CountOf(_profile, item.Id), countRect,
+                    enabled ? accent : new Color(160, 164, 172),
+                    0.52f, 0.24f);
+            }
+
+            DrawItemMessage(spriteBatch);
+        }
+
+        private void DrawItemMessage(SpriteBatch spriteBatch)
+        {
+            if (string.IsNullOrWhiteSpace(_itemMessage)) return;
+
+            var banner = _layoutManager.StatusBanner;
+            var topBar = _layoutManager.TopBar;
+            int y = banner.Bottom + 1;
+            var messageRect = new Rectangle(banner.X, y, banner.Width,
+                Math.Max(1, topBar.Bottom - y - 1));
+
+            _fontService.DrawTextCenteredFit(spriteBatch, _itemMessage,
+                messageRect,
+                _itemMessageIsError ? new Color(244, 170, 150) : new Color(150, 220, 170),
+                0.34f, 0.18f);
         }
 
         private void DrawHand(SpriteBatch spriteBatch)
@@ -1394,7 +1814,7 @@ namespace SnapClone.Scenes
             {
                 if (!view.IsDragging)
                 {
-                    view.IsAffordable = view.Card.Definition.Cost <= _turnManager.PlayerAvailableEnergy;
+                    view.IsAffordable = view.Card.EffectiveCost <= _turnManager.PlayerAvailableEnergy;
                     DrawHandCard(spriteBatch, view);
                 }
             }
@@ -1409,7 +1829,7 @@ namespace SnapClone.Scenes
                 (int)view.Size.Y);
 
             if (view.Origin == CardOrigin.Hand)
-                view.IsAffordable = view.Card.Definition.Cost <= _turnManager.PlayerAvailableEnergy;
+                view.IsAffordable = view.Card.EffectiveCost <= _turnManager.PlayerAvailableEnergy;
 
             view.DrawInHand(spriteBatch, _shapeDrawer, _fontService, bounds);
 

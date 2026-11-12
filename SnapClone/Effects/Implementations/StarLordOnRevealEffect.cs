@@ -29,7 +29,7 @@ namespace SnapClone.Effects.Implementations
                     if (record.ZoneIndex != zoneIndex) continue;
                     if (record.Side == context.Owner) continue;
 
-                    context.SourceCard.BonusPower += Amount;
+                    context.AddPower(context.SourceCard, Amount);
                     return;
                 }
 
@@ -48,7 +48,7 @@ namespace SnapClone.Effects.Implementations
                     if (rival.PlayedTurn != context.TurnNumber) continue;
                     if (rival.PlayedZoneIndex != zoneIndex) continue;
 
-                    context.SourceCard.BonusPower += Amount;
+                    context.AddPower(context.SourceCard, Amount);
                     return;
                 }
             }

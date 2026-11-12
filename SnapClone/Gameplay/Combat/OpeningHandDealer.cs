@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using SnapClone.Data.Definitions;
 using SnapClone.Gameplay.Cards;
 
 namespace SnapClone.Gameplay.Combat
@@ -17,10 +18,13 @@ namespace SnapClone.Gameplay.Combat
         {
             if (deck == null || hand == null) return;
 
+            // Superstar y las cartas etiquetadas entran antes que las aleatorias.
+            // Si hay mas forzadas que huecos, el excedente queda en el mazo.
             for (int i = deck.Count - 1; i >= 0; i--)
             {
                 var card = deck[i];
                 if (!StartsInHand(card)) continue;
+                if (hand.Count >= size) continue;
 
                 deck.RemoveAt(i);
                 hand.Add(card);
@@ -44,7 +48,8 @@ namespace SnapClone.Gameplay.Combat
         }
 
         public static bool StartsInHand(CardInstance card) =>
-            HasTag(card, StartsInHandTag);
+            HasTag(card, StartsInHandTag) ||
+            PerkCatalog.HasPerk(card?.AttachedPerks, PerkCatalog.Superstar);
 
         public static bool IsForcedTurn2(CardInstance card) =>
             HasTag(card, ForcedTurn2Tag);

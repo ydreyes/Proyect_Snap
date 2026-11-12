@@ -28,8 +28,36 @@ namespace SnapClone.Android
 
             _game = new Game1();
             _game.SafeAreaProvider = new AndroidSafeAreaProvider(this);
-            SetContentView(_game.Services.GetService(typeof(View)) as View);
+            _game.DataDirectory = FilesDir.AbsolutePath;
+            _game.ExitRequested = () => RunOnUiThread(Finish);
+
+            var gameView = _game.Services.GetService(typeof(View)) as View;
+            if (gameView != null)
+                gameView.SetOnKeyListener(new GameKeyListener(this));
+
+            SetContentView(gameView);
             _game.Run();
+        }
+
+        private sealed class GameKeyListener : Java.Lang.Object, View.IOnKeyListener
+        {
+            private readonly MainActivity _activity;
+
+            public GameKeyListener(MainActivity activity)
+            {
+                _activity = activity;
+            }
+
+            public bool OnKey(View v, Keycode keyCode, KeyEvent e)
+            {
+                if (keyCode != Keycode.Back)
+                    return false;
+
+                if (e != null && e.Action == KeyEventActions.Down)
+                    _activity._game?.RequestBack();
+
+                return true;
+            }
         }
 
         protected override void OnResume()
@@ -37,12 +65,36 @@ namespace SnapClone.Android
             base.OnResume();
             Window.AddFlags(WindowManagerFlags.KeepScreenOn);
             ApplyImmersiveMode();
+            _game?.OnAppResumed();
         }
 
         protected override void OnPause()
         {
+            _game?.OnAppPaused();
             Window.ClearFlags(WindowManagerFlags.KeepScreenOn);
             base.OnPause();
+        }
+
+        public override bool OnKeyDown(Keycode keyCode, KeyEvent e)
+        {
+            if (keyCode == Keycode.Back)
+            {
+                _game?.RequestBack();
+                return true;
+            }
+
+            return base.OnKeyDown(keyCode, e);
+        }
+
+        public override void OnBackPressed()
+        {
+            if (_game != null)
+            {
+                _game.RequestBack();
+                return;
+            }
+
+            base.OnBackPressed();
         }
 
         public override void OnWindowFocusChanged(bool hasFocus)

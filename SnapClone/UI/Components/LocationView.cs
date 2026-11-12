@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SnapClone.UI.Primitives;
@@ -16,6 +17,9 @@ namespace SnapClone.UI.Components
 
         /// <summary>Una locacion oculta no muestra nombre, efecto ni arte.</summary>
         public bool IsRevealed { get; set; } = true;
+
+        /// <summary>Estado corto de la locacion: INUNDADA, BLOQUEADA o vacio.</summary>
+        public string StatusText { get; set; } = string.Empty;
 
         public Rectangle Panel { get; set; }
         public Rectangle[] OpponentSlots { get; set; } = new Rectangle[4];
@@ -83,11 +87,15 @@ namespace SnapClone.UI.Components
             float radius = System.Math.Max(9f, System.Math.Min(inner.Width * 0.17f, inner.Height * 0.19f));
             int totalsTop = inner.Bottom - (int)(radius * 2f);
 
+            int statusHeight = IsRevealed && !string.IsNullOrEmpty(StatusText)
+                ? Math.Max(10, inner.Height / 18)
+                : 0;
+
             var effectArea = new Rectangle(
                 inner.X,
                 header.Bottom,
                 inner.Width,
-                totalsTop - header.Bottom - 1);
+                Math.Max(1, totalsTop - header.Bottom - 1 - statusHeight));
 
             if (IsRevealed && effectArea.Height > 8 && !string.IsNullOrEmpty(EffectText))
             {
@@ -98,6 +106,14 @@ namespace SnapClone.UI.Components
             {
                 fonts.DrawTextCentered(spriteBatch, "? ? ?", effectArea,
                     new Color(120, 130, 150), 0.42f);
+            }
+
+            if (statusHeight > 0)
+            {
+                var statusRect = new Rectangle(inner.X, effectArea.Bottom + 1,
+                    inner.Width, statusHeight);
+                fonts.DrawTextCenteredFit(spriteBatch, StatusText, statusRect,
+                    new Color(255, 200, 120), 0.34f, 0.22f);
             }
 
             float badgeY = totalsTop + radius;

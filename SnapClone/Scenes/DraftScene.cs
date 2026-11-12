@@ -2,66 +2,73 @@ using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SnapClone.Core.Services;
+using SnapClone.Data.Definitions;
+using SnapClone.Gameplay.Cards;
 using SnapClone.Gameplay.Draft;
 using SnapClone.Gameplay.Run;
-using SnapClone.UI.Components;
-using SnapClone.UI.Primitives;
+using SnapClone.Persistence;
+using SnapClone.UI.Animation;
+using SnapClone.UI.Rendering;
+using SnapClone.UI.Theme;
 
 namespace SnapClone.Scenes
 {
     /// <summary>
-    /// Borrador real: 8 rondas de 1 entre 3. Al completar las 8 cartas,
-    /// el mazo pasa a la escena de combate.
+    /// Borrador: tira de ocho slots sobre tres ofertas de arte. Al completar
+    /// las ocho cartas el mazo pasa al combate. La logica de pick no cambia.
     /// </summary>
-    public class DraftScene : IScene
+    public class DraftScene : UiScene
     {
         private const int CardCount = DraftSystem.ChoicesPerRound;
 
-        private GraphicsDevice _graphicsDevice;
-        private SpriteBatch _spriteBatch;
-        private ShapeDrawer _shapeDrawer;
-        private FontService _fontService;
-        private GameServices _services;
-        private SceneManager _sceneManager;
-
         private DraftSystem _draftSystem;
         private RunState _runState;
-        private readonly List<CardInstanceView> _choices = new List<CardInstanceView>();
+        private RunDirector _runDirector;
+        private RunCheckpointService _checkpoint;
+        private readonly List<CardInstanceView> _choices =
+            new List<CardInstanceView>();
+
+        private CardInstance _flyCard;
+        private Rectangle _flyFrom;
+        private Rectangle _flyTo;
+        private bool _flyActive;
 
         private sealed class CardInstanceView
         {
-            public CardView View;
+            public CardInstance Card;
         }
 
-        public DraftScene(GraphicsDevice graphicsDevice, SpriteBatch spriteBatch, GameServices services, SceneManager sceneManager)
+        public DraftScene(GraphicsDevice graphicsDevice, SpriteBatch spriteBatch,
+            GameServices services, SceneManager sceneManager)
+            : base(graphicsDevice, spriteBatch, services, sceneManager)
         {
-            _graphicsDevice = graphicsDevice;
-            _spriteBatch = spriteBatch;
-            _services = services;
-            _sceneManager = sceneManager;
         }
 
-        public void Initialize() { }
+        protected override string Title => "DRAFT";
+        protected override string Subtitle => "ELIGE 1 DE 3 CARTAS";
+        protected override Color Accent => UiTheme.Gold;
+        protected override string CurrencyIcon => "P";
+        protected override string CurrencyValue =>
+            $"{_draftSystem?.PicksMade ?? 0}/{DraftSystem.TotalPicks}";
+        protected override string CurrencyLabel => "PICKS";
+        protected override int BackgroundSeed => 2202;
 
-        public void OnEnter()
+        protected override void OnEnterScene()
         {
-            _draftSystem = _services.Get<DraftSystem>();
-            _runState = _services.Get<RunState>();
+            _draftSystem = Services.Get<DraftSystem>();
+            _runState = Services.Get<RunState>();
+            _runDirector = Services.Get<RunDirector>();
+            _checkpoint = Services.Get<RunCheckpointService>();
 
-            _draftSystem.Reset();
-            _runState.StartNewRun();
+            _flyActive = false;
+            _flyCard = null;
+
+            // El llamador prepara la run o restaura el checkpoint. Aqui solo se
+            // asegura que la ronda actual tenga ofertas, sin rebarajar.
+            _draftSystem.EnsureOffers();
             LoadChoices();
-        }
-
-        public void LoadContent()
-        {
-            _shapeDrawer = new ShapeDrawer(_graphicsDevice, _spriteBatch);
-
-            var content = _services.Has<Microsoft.Xna.Framework.Content.ContentManager>()
-                ? _services.Get<Microsoft.Xna.Framework.Content.ContentManager>()
-                : _services.Get<Game>().Content;
-
-            _fontService = new FontService(content);
+            _checkpoint.SaveDraftCheckpoint();
+            AnimateOffers();
         }
 
         private void LoadChoices()
@@ -70,35 +77,135 @@ namespace SnapClone.Scenes
 
             foreach (var card in _draftSystem.GetChoices())
             {
-                _choices.Add(new CardInstanceView
-                {
-                    View = new CardView(card, Vector2.Zero) { Origin = CardOrigin.Hand }
-                });
+                _runState.DiscoverCard(card.Definition?.Id);
+                _choices.Add(new CardInstanceView { Card = card });
             }
         }
 
-        public void Update(GameTime gameTime)
+        private void AnimateOffers()
         {
-            var input = _services.Get<InputService>();
-            input.Update();
+            for (int i = 0; i < CardCount; i++)
+            {
+                Animator.Remove($"offer{i}");
+                Animator.AddEntrance($"offer{i}", i, 0.06f, 0.30f);
+            }
+        }
 
-            if (!input.IsLeftMousePressed()) return;
+        // ------------------------------------------------------------------
+        // Layout
+        // ------------------------------------------------------------------
 
-            var mouse = input.MousePosition;
+        private Rectangle StripBounds
+        {
+            get
+            {
+                var inner = ContentInner;
+                int height = UiTheme.Px(34, Scaffold.UiScale);
+                return new Rectangle(inner.X, inner.Y, inner.Width, height);
+            }
+        }
 
+        private Rectangle ThemeBounds
+        {
+            get
+            {
+                var inner = ContentInner;
+                int y = StripBounds.Bottom + UiTheme.Px(UiTheme.SpaceLg,
+                    Scaffold.UiScale);
+                return new Rectangle(inner.X, y, inner.Width,
+                    UiTheme.Px(40, Scaffold.UiScale));
+            }
+        }
+
+        private Rectangle CardsArea
+        {
+            get
+            {
+                var inner = ContentInner;
+                int top = ThemeBounds.Bottom + UiTheme.Px(UiTheme.SpaceMd,
+                    Scaffold.UiScale);
+                int bottom = inner.Bottom - UiTheme.Px(72, Scaffold.UiScale);
+                return new Rectangle(inner.X, top, inner.Width,
+                    System.Math.Max(0, bottom - top));
+            }
+        }
+
+        private Rectangle ContinueBounds
+        {
+            get
+            {
+                var inner = ContentInner;
+                int height = UiTheme.Px(56, Scaffold.UiScale);
+                return new Rectangle(inner.X, inner.Bottom - height,
+                    inner.Width, height);
+            }
+        }
+
+        private Rectangle GetCardBounds(int index)
+        {
+            var area = CardsArea;
+            int gap = UiTheme.Px(UiTheme.SpaceMd, Scaffold.UiScale);
+            int width = (area.Width - gap * (CardCount - 1)) / CardCount;
+            int height = (int)(width * 1.42f);
+            if (height > area.Height) height = area.Height;
+            int y = area.Y + System.Math.Max(0, (area.Height - height) / 2);
+            return new Rectangle(area.X + index * (width + gap), y, width,
+                height);
+        }
+
+        private Rectangle GetStripSlotBounds(int index)
+        {
+            var strip = StripBounds;
+            int gap = UiTheme.Px(UiTheme.SpaceXs, Scaffold.UiScale);
+            int width = (strip.Width - gap * (DraftSystem.TotalPicks - 1)) /
+                        DraftSystem.TotalPicks;
+            return new Rectangle(strip.X + index * (width + gap), strip.Y,
+                width, strip.Height);
+        }
+
+        // ------------------------------------------------------------------
+        // Update
+        // ------------------------------------------------------------------
+
+        protected override void UpdateScene(GameTime gameTime)
+        {
             if (_draftSystem.IsDraftComplete())
             {
-                if (IsInside(GetContinueButton(), mouse))
+                if (Tap("continue", ContinueBounds))
                     CompleteDraft();
                 return;
             }
 
+            Tap("continue", ContinueBounds, false);
+
             for (int i = 0; i < _choices.Count; i++)
             {
-                if (!IsInside(GetCardBounds(i), mouse)) continue;
+                if (!Tap($"card{i}", GetCardBounds(i))) continue;
 
-                if (_draftSystem.PickCard(_choices[i].View.Card))
+                var picked = _choices[i].Card;
+                int slot = _draftSystem.PicksMade;
+                Rectangle from = GetCardBounds(i);
+
+                if (_draftSystem.PickCard(picked))
+                {
+                    _checkpoint.SaveDraftCheckpoint();
+
+                    _flyCard = picked;
+                    _flyFrom = from;
+                    _flyTo = GetStripSlotBounds(
+                        System.Math.Min(slot, DraftSystem.TotalPicks - 1));
+                    _flyActive = true;
+
+                    Animator.Remove("fly");
+                    Animator.Add(new Tween(0f, 1f, 0.30f,
+                        EasingKind.EaseOutCubic)
+                    {
+                        OnComplete = () => _flyActive = false
+                    });
+
                     LoadChoices();
+                    AnimateOffers();
+                }
 
                 return;
             }
@@ -108,119 +215,142 @@ namespace SnapClone.Scenes
         {
             _runState.Deck.Clear();
             _runState.Deck.AddRange(_draftSystem.GetDraftedCards());
-            _sceneManager.ChangeScene("Combat");
+            _draftSystem.Reset();
+            _runDirector.OnDraftComplete();
+            _checkpoint.SaveSafeNode();
+            Scenes.ChangeScene(_runDirector.GetNextScene());
         }
 
-        private Rectangle GetCardBounds(int index)
+        // ------------------------------------------------------------------
+        // Draw
+        // ------------------------------------------------------------------
+
+        protected override void DrawScene(SpriteBatch spriteBatch, Rectangle content,
+            float uiScale)
         {
-            var viewport = _graphicsDevice.Viewport;
-            int cardWidth = (int)(viewport.Width * 0.28f);
-            int cardHeight = (int)(cardWidth * 1.42f);
-            int gap = (int)(viewport.Width * 0.04f);
-            int totalWidth = CardCount * cardWidth + (CardCount - 1) * gap;
-            int startX = (viewport.Width - totalWidth) / 2;
-            int y = (int)(viewport.Height * 0.30f);
-
-            return new Rectangle(startX + index * (cardWidth + gap), y, cardWidth, cardHeight);
-        }
-
-        private Rectangle GetContinueButton()
-        {
-            var viewport = _graphicsDevice.Viewport;
-            return new Rectangle(
-                (int)(viewport.Width * 0.20f),
-                (int)(viewport.Height * 0.80f),
-                (int)(viewport.Width * 0.60f),
-                (int)(viewport.Height * 0.065f));
-        }
-
-        public void Draw(GameTime gameTime, SpriteBatch spriteBatch)
-        {
-            _graphicsDevice.Clear(new Color(10, 18, 16));
-            spriteBatch.Begin();
-
-            var viewport = _graphicsDevice.Viewport;
-
-            var titleRect = new Rectangle(0, (int)(viewport.Height * 0.07f), viewport.Width, (int)(viewport.Height * 0.06f));
-            _fontService.DrawTextCentered(spriteBatch, "DRAFT", titleRect, Color.White, 1.0f);
-
-            var progressRect = new Rectangle(0, (int)(viewport.Height * 0.13f), viewport.Width, (int)(viewport.Height * 0.05f));
-            _fontService.DrawTextCentered(spriteBatch,
-                $"{_draftSystem.PicksMade} / {DraftSystem.TotalPicks}",
-                progressRect, new Color(224, 196, 128), 0.8f);
-
-            DrawProgressPips(viewport);
+            DrawProgressStrip(spriteBatch, uiScale);
 
             if (_draftSystem.IsDraftComplete())
             {
-                DrawCompletedState(spriteBatch, viewport);
+                DrawCompleted(spriteBatch, uiScale);
             }
             else
             {
-                var hintRect = new Rectangle(0, (int)(viewport.Height * 0.22f), viewport.Width, (int)(viewport.Height * 0.04f));
-                _fontService.DrawTextCentered(spriteBatch, "ELIGE 1 DE 3 CARTAS",
-                    hintRect, new Color(170, 190, 215), 0.65f);
+                DrawThemeRibbon(spriteBatch, uiScale);
 
                 for (int i = 0; i < _choices.Count; i++)
                 {
                     var bounds = GetCardBounds(i);
-                    _choices[i].View.SnapTo(bounds);
-                    _choices[i].View.DrawInHand(spriteBatch, _shapeDrawer, _fontService, bounds);
+                    float t = Animator.Value($"offer{i}", 1f);
+                    var animated = AnimateIn(bounds, t, uiScale);
+
+                    DrawCardInstance(animated, _choices[i].Card,
+                        new CardRenderOptions
+                        {
+                            Variant = CardFrameVariant.Draft,
+                            Opacity = MathHelper.Clamp(t, 0f, 1f),
+                            ShowName = true
+                        });
                 }
             }
 
-            DrawContinueButton(spriteBatch);
+            if (_flyActive && _flyCard != null)
+                DrawFlyGhost(spriteBatch, uiScale);
 
-            spriteBatch.End();
+            DrawTapButtonScaled("continue", "CONTINUAR", UiTheme.Success,
+                UiTheme.Label);
         }
 
-        private void DrawProgressPips(Viewport viewport)
+        private void DrawProgressStrip(SpriteBatch spriteBatch, float uiScale)
         {
-            int total = DraftSystem.TotalPicks;
-            int radius = System.Math.Max(4, viewport.Width / 90);
-            int gap = radius * 3;
-            int totalWidth = total * gap;
-            int startX = (viewport.Width - totalWidth) / 2 + gap / 2;
-            int y = (int)(viewport.Height * 0.195f);
+            var strip = StripBounds;
+            Ui.Chrome.DrawProgressSlots(spriteBatch, strip,
+                DraftSystem.TotalPicks, _draftSystem.PicksMade,
+                _draftSystem.PicksMade, UiTheme.Gold, uiScale);
 
-            for (int i = 0; i < total; i++)
+            string label = _draftSystem.IsDraftComplete()
+                ? "MAZO COMPLETO 8/8"
+                : $"PICK {_draftSystem.PicksMade + 1} DE {DraftSystem.TotalPicks}";
+            DrawSectionLabel(label,
+                new Rectangle(strip.X, strip.Bottom + UiTheme.Px(2, uiScale),
+                    strip.Width, UiTheme.Px(18, uiScale)),
+                UiTheme.TextSecondary, UiTheme.Caption);
+        }
+
+        private void DrawThemeRibbon(SpriteBatch spriteBatch, float uiScale)
+        {
+            var theme = _draftSystem.CurrentTheme;
+            string label = theme.HasValue
+                ? DraftThemeText.RoundLabel(theme.Value)
+                : "ALEATORIO";
+            Color accent = ThemeAccent(theme);
+
+            DrawRibbon(ThemeBounds, label, accent);
+        }
+
+        private void DrawCompleted(SpriteBatch spriteBatch, float uiScale)
+        {
+            var area = CardsArea;
+            Ui.Chrome.DrawGlow(spriteBatch,
+                new Vector2(area.Center.X, area.Center.Y),
+                area.Width * 0.34f, UiTheme.Success * 0.28f);
+
+            DrawDisplayCentered("MAZO COMPLETO",
+                new Rectangle(area.X, area.Y + area.Height / 2 -
+                    UiTheme.Px(36, uiScale), area.Width,
+                    UiTheme.Px(56, uiScale)),
+                UiTheme.Success, UiTheme.Display);
+
+            DrawTextCenteredFit("CONTINUA AL COMBATE",
+                new Rectangle(area.X, area.Y + area.Height / 2 +
+                    UiTheme.Px(24, uiScale), area.Width,
+                    UiTheme.Px(24, uiScale)),
+                UiTheme.TextSecondary, UiTheme.LabelSmall);
+        }
+
+        private void DrawFlyGhost(SpriteBatch spriteBatch, float uiScale)
+        {
+            float t = Animator.Value("fly", 1f);
+            t = MathHelper.Clamp(t, 0f, 1f);
+
+            int x = (int)MathHelper.Lerp(_flyFrom.X, _flyTo.X, t);
+            int y = (int)MathHelper.Lerp(_flyFrom.Y, _flyTo.Y, t);
+            int width = (int)MathHelper.Lerp(_flyFrom.Width, _flyTo.Width, t);
+            int height = (int)MathHelper.Lerp(_flyFrom.Height, _flyTo.Height, t);
+
+            DrawCardInstance(new Rectangle(x, y, System.Math.Max(6, width),
+                System.Math.Max(6, height)), _flyCard,
+                new CardRenderOptions
+                {
+                    Variant = CardFrameVariant.MiniDeck,
+                    Opacity = 1f - t * 0.55f,
+                    ShowName = false
+                });
+        }
+
+        private static Rectangle AnimateIn(Rectangle bounds, float t,
+            float uiScale)
+        {
+            t = MathHelper.Clamp(t, 0f, 1f);
+            float scale = MathHelper.Lerp(0.92f, 1f, t);
+            int y = bounds.Y + (int)((1f - t) * UiTheme.Px(18, uiScale));
+            int width = (int)(bounds.Width * scale);
+            int height = (int)(bounds.Height * scale);
+            return new Rectangle(bounds.X + (bounds.Width - width) / 2, y,
+                System.Math.Max(6, width), System.Math.Max(6, height));
+        }
+
+        private static Color ThemeAccent(DraftTheme? theme)
+        {
+            if (!theme.HasValue) return UiTheme.AccentSoft;
+
+            switch (theme.Value)
             {
-                bool filled = i < _draftSystem.PicksMade;
-                var center = new Vector2(startX + i * gap, y);
-                _shapeDrawer.DrawCircleFramed(center, radius,
-                    filled ? new Color(196, 148, 62) : new Color(40, 46, 60),
-                    filled ? new Color(255, 220, 150) : new Color(90, 100, 120), 1.5f);
+                case DraftTheme.Control: return new Color(96, 150, 230);
+                case DraftTheme.Destroy: return new Color(220, 110, 100);
+                case DraftTheme.OnReveal: return new Color(176, 140, 240);
+                default: return new Color(120, 200, 170);
             }
-        }
-
-        private void DrawCompletedState(SpriteBatch spriteBatch, Viewport viewport)
-        {
-            var completeRect = new Rectangle(0, (int)(viewport.Height * 0.34f), viewport.Width, (int)(viewport.Height * 0.10f));
-            _fontService.DrawTextCentered(spriteBatch, "MAZO COMPLETO (8)",
-                completeRect, new Color(126, 214, 170), 0.9f);
-
-            var instructionRect = new Rectangle(0, (int)(viewport.Height * 0.44f), viewport.Width, (int)(viewport.Height * 0.06f));
-            _fontService.DrawTextCentered(spriteBatch, "CONTINUA AL COMBATE",
-                instructionRect, new Color(190, 206, 226), 0.65f);
-        }
-
-        private void DrawContinueButton(SpriteBatch spriteBatch)
-        {
-            var button = GetContinueButton();
-            bool enabled = _draftSystem.IsDraftComplete();
-
-            var fill = enabled ? new Color(30, 104, 74) : new Color(38, 52, 46);
-            var border = enabled ? new Color(126, 214, 170) : new Color(96, 116, 106);
-
-            _shapeDrawer.DrawBeveledPanel(button, fill, border, 3, 12);
-            _fontService.DrawTextCentered(spriteBatch, "CONTINUAR",
-                button, enabled ? Color.White : new Color(190, 200, 196), 0.8f);
-        }
-
-        private static bool IsInside(Rectangle bounds, Vector2 point)
-        {
-            return point.X >= bounds.Left && point.X <= bounds.Right &&
-                   point.Y >= bounds.Top && point.Y <= bounds.Bottom;
         }
     }
 }

@@ -17,11 +17,13 @@ namespace SnapClone.Gameplay.AI
         private readonly CardActionService _actionService;
 
         public AIController(BoardState boardState, RandomService randomService,
-            CardActionService actionService, TurnManager turnManager)
+            CardActionService actionService, TurnManager turnManager,
+            int difficulty = 1)
         {
             _boardState = boardState;
             _actionService = actionService;
-            _strategy = new AIStrategy(randomService, turnManager);
+            _strategy = new AIStrategy(randomService, turnManager, difficulty,
+                actionService);
         }
 
         public PlayResult TryPlayOne()

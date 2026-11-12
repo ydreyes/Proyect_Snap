@@ -13,7 +13,7 @@ namespace SnapClone.Effects.Implementations
             if (context.SourceCard == null || context.SourceZone == null) return;
             if (context.SourceZone.ZoneIndex != ZoneIndex) return;
 
-            context.SourceCard.BonusPower += Amount;
+            context.AddPower(context.SourceCard, Amount);
         }
     }
 }

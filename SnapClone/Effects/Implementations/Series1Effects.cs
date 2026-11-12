@@ -63,12 +63,24 @@ namespace SnapClone.Effects.Implementations
 
             return false;
         }
+
+        public static int PowerOf(EffectContext context, CardInstance card,
+            ZoneInstance zone, BoardSide side)
+        {
+            if (card == null) return 0;
+
+            return context.BoardState?.PowerResolver != null
+                ? context.BoardState.PowerResolver.CalculateCardPower(
+                    card, zone, context.BoardState, side)
+                : card.CurrentPower;
+        }
     }
 
     public class OnRevealDestroyEffect : CardEffectBase
     {
         public string Target { get; set; } = "othersHere";
         public int PerDestroyed { get; set; }
+        public bool AddDestroyedPower { get; set; }
 
         public override void Apply(EffectContext context)
         {
@@ -82,7 +94,7 @@ namespace SnapClone.Effects.Implementations
             if (Target == "enemy1CostHere")
             {
                 var enemies = zone.CardsFor(Series1EffectHelpers.Other(owner))
-                    .Where(c => c.Definition != null && c.Definition.Cost == 1)
+                    .Where(c => c.Definition != null && c.EffectiveCost == 1)
                     .ToList();
 
                 var chosen = Series1EffectHelpers.PickRandom(enemies, context.Random);
@@ -92,20 +104,101 @@ namespace SnapClone.Effects.Implementations
                 return;
             }
 
+            if (Target == "enemy10PlusHere")
+            {
+                var enemy = Series1EffectHelpers.Other(owner);
+                var enemies = zone.CardsFor(enemy)
+                    .Where(c => c.Definition != null &&
+                                Series1EffectHelpers.PowerOf(context, c, zone,
+                                    enemy) >= 10)
+                    .ToList();
+
+                var chosen = Series1EffectHelpers.PickRandom(enemies, context.Random);
+                if (chosen != null)
+                    context.Actions.DestroyCard(chosen, enemy, ActionCause.Effect);
+                return;
+            }
+
+            if (Target == "all1Cost")
+            {
+                var targets = new List<(CardInstance Card, BoardSide Side)>();
+
+                foreach (var targetZone in context.BoardState.Zones)
+                {
+                    foreach (var card in targetZone.PlayerCards)
+                    {
+                        if (card.Definition != null && card.EffectiveCost == 1)
+                            targets.Add((card, BoardSide.Player));
+                    }
+
+                    foreach (var card in targetZone.AICards)
+                    {
+                        if (card.Definition != null && card.EffectiveCost == 1)
+                            targets.Add((card, BoardSide.AI));
+                    }
+                }
+
+                foreach (var target in targets)
+                    context.Actions.DestroyCard(target.Card, target.Side,
+                        ActionCause.Effect);
+
+                return;
+            }
+
+            if (Target == "allHereAtMost3Power")
+            {
+                var all = zone.PlayerCards.Concat(zone.AICards).ToList();
+                foreach (var card in all)
+                {
+                    if (ReferenceEquals(card, context.SourceCard)) continue;
+                    var side = zone.PlayerCards.Contains(card)
+                        ? BoardSide.Player
+                        : BoardSide.AI;
+                    int power = Series1EffectHelpers.PowerOf(context, card,
+                        zone, side);
+                    if (power > 3) continue;
+                    context.Actions.DestroyCard(card, side, ActionCause.Effect);
+                }
+
+                return;
+            }
+
+            if (Target == "othersAtOtherLocations")
+            {
+                foreach (var targetZone in context.BoardState.Zones)
+                {
+                    if (targetZone == zone) continue;
+                    foreach (var card in targetZone.CardsFor(owner).ToList())
+                        context.Actions.DestroyCard(card, owner,
+                            ActionCause.Effect);
+                }
+
+                return;
+            }
+
             var cards = new List<CardInstance>(zone.CardsFor(owner));
             int destroyed = 0;
+            int destroyedPower = 0;
 
             foreach (var card in cards)
             {
                 if (ReferenceEquals(card, context.SourceCard)) continue;
 
+                int power = Series1EffectHelpers.PowerOf(context, card, zone,
+                    owner);
                 var result = context.Actions.DestroyCard(card, owner, ActionCause.Effect);
                 if (result != null && result.Success)
+                {
                     destroyed++;
+                    destroyedPower += power;
+                }
             }
 
+            if (AddDestroyedPower && destroyedPower != 0)
+                context.AddPower(context.SourceCard, destroyedPower);
+
             if (PerDestroyed != 0)
-                context.SourceCard.BonusPower += PerDestroyed * destroyed;
+                context.AddPower(context.SourceCard, PerDestroyed * destroyed);
         }
     }
 
@@ -128,14 +221,28 @@ namespace SnapClone.Effects.Implementations
             }
             else if (Selection == "highestCost")
             {
-                int max = hand.Max(c => c.Definition.Cost);
+                int max = hand.Max(c => c.EffectiveCost);
                 chosen = Series1EffectHelpers.PickRandom(
-                    hand.Where(c => c.Definition.Cost == max).ToList(), context.Random);
+                    hand.Where(c => c.EffectiveCost == max).ToList(), context.Random);
             }
             else if (Selection == "oddCost")
             {
                 chosen = Series1EffectHelpers.PickRandom(
-                    hand.Where(c => c.Definition.Cost % 2 == 1).ToList(), context.Random);
+                    hand.Where(c => c.EffectiveCost % 2 == 1).ToList(), context.Random);
+            }
+            else if (Selection == "leastCost")
+            {
+                int min = hand.Min(c => c.EffectiveCost);
+                chosen = Series1EffectHelpers.PickRandom(
+                    hand.Where(c => c.EffectiveCost == min).ToList(),
+                    context.Random);
+            }
+            else if (Selection == "all")
+            {
+                foreach (var card in hand.ToList())
+                    context.Actions.DiscardCard(card, context.Owner,
+                        ActionCause.Effect);
+                return;
             }
 
             if (chosen != null)
@@ -146,15 +253,22 @@ namespace SnapClone.Effects.Implementations
     public class OnRevealAfflictEffect : CardEffectBase
     {
         public int Amount { get; set; } = -1;
+        public string Target { get; set; } = "enemy";
 
         public override void Apply(EffectContext context)
         {
             if (context.SourceZone == null) return;
 
-            foreach (var card in context.SourceZone.CardsFor(
-                Series1EffectHelpers.Other(context.Owner)))
+            var side = Target == "ownOthers"
+                ? context.Owner
+                : Series1EffectHelpers.Other(context.Owner);
+
+            foreach (var card in context.SourceZone.CardsFor(side))
             {
-                card.BonusPower += Amount;
+                if (Target == "ownOthers" &&
+                    ReferenceEquals(card, context.SourceCard))
+                    continue;
+                context.AddPower(card, Amount);
             }
         }
     }
@@ -172,8 +286,73 @@ namespace SnapClone.Effects.Implementations
             var owner = context.Owner;
             var sourceZone = context.SourceZone;
             var moves = new List<CardMoveRequest>();
+            var enemy = Series1EffectHelpers.Other(owner);
 
-            if (Mode == "othersLeft")
+            if (Mode == "enemyLowCostToHere")
+            {
+                var candidates = new List<(CardInstance card, int zone)>();
+                foreach (var zone in context.BoardState.Zones)
+                {
+                    if (zone == sourceZone) continue;
+                    foreach (var card in zone.CardsFor(enemy))
+                    {
+                        if (card.Definition != null && card.EffectiveCost <= 2)
+                            candidates.Add((card, zone.ZoneIndex));
+                    }
+                }
+
+                var chosen = Series1EffectHelpers.PickRandom(
+                    candidates.Select(c => c.card).ToList(), context.Random);
+                if (chosen != null)
+                {
+                    int from = candidates.First(c =>
+                        ReferenceEquals(c.card, chosen)).zone;
+                    moves.Add(new CardMoveRequest
+                    {
+                        Card = chosen,
+                        Side = enemy,
+                        FromZone = from,
+                        ToZone = sourceZone.ZoneIndex
+                    });
+                }
+            }
+            else if (Mode == "enemyHereToRight")
+            {
+                int to = sourceZone.ZoneIndex + 1;
+                if (to >= context.BoardState.Zones.Count) return;
+
+                foreach (var card in sourceZone.CardsFor(enemy))
+                {
+                    moves.Add(new CardMoveRequest
+                    {
+                        Card = card,
+                        Side = enemy,
+                        FromZone = sourceZone.ZoneIndex,
+                        ToZone = to
+                    });
+                }
+            }
+            else if (Mode == "enemyCost34ToHere")
+            {
+                foreach (var zone in context.BoardState.Zones)
+                {
+                    if (zone == sourceZone) continue;
+                    foreach (var card in zone.CardsFor(enemy))
+                    {
+                        if (card.Definition == null) continue;
+                        if (card.EffectiveCost != 3 && card.EffectiveCost != 4)
+                            continue;
+                        moves.Add(new CardMoveRequest
+                        {
+                            Card = card,
+                            Side = enemy,
+                            FromZone = zone.ZoneIndex,
+                            ToZone = sourceZone.ZoneIndex
+                        });
+                    }
+                }
+            }
+            else if (Mode == "othersLeft")
             {
                 foreach (var zone in context.BoardState.Zones)
                 {
@@ -243,6 +422,9 @@ namespace SnapClone.Effects.Implementations
         public string Target { get; set; } = "here";
         public bool CopySourcePower { get; set; }
         public int PowerBonus { get; set; }
+        public bool BothSides { get; set; }
+        public int Copies { get; set; } = 1;
+        public bool CopySourcePowerAsSet { get; set; }
 
         public override void Apply(EffectContext context)
         {
@@ -257,6 +439,23 @@ namespace SnapClone.Effects.Implementations
                 if (context.SourceZone != null)
                     targets.Add(context.SourceZone);
             }
+            else if (Target == "randomOtherLocation")
+            {
+                var candidates = context.BoardState.Zones
+                    .Where(zone => zone != context.SourceZone &&
+                                   zone.CanAdd(context.Owner))
+                    .ToList();
+
+                var chosen = Series1EffectHelpers.PickRandom(candidates,
+                    context.Random);
+                if (chosen != null)
+                    targets.Add(chosen);
+            }
+            else if (Target == "right")
+            {
+                if (context.BoardState.Zones.Count > 2)
+                    targets.Add(context.BoardState.Zones[2]);
+            }
             else
             {
                 foreach (var zone in context.BoardState.Zones)
@@ -268,29 +467,48 @@ namespace SnapClone.Effects.Implementations
 
             foreach (var zone in targets)
             {
-                if (!zone.CanAdd(context.Owner)) continue;
+                var sides = BothSides
+                    ? new[] { context.Owner, Series1EffectHelpers.Other(context.Owner) }
+                    : new[] { context.Owner };
 
-                var token = new CardInstance(definition)
+                foreach (var side in sides)
                 {
-                    Location = CardLocation.Board,
-                    IsInPlay = true,
-                    PlayedTurn = 0,
-                    PlayedZoneIndex = -1
-                };
+                    if (!zone.CanAdd(side)) continue;
 
-                if (PowerBonus != 0)
-                    token.BonusPower += PowerBonus;
-                if (CopySourcePower && context.SourceCard != null)
-                {
-                    int sourcePower = context.BoardState?.PowerResolver != null
-                        ? context.BoardState.PowerResolver.CalculateCardPower(
-                            context.SourceCard, context.SourceZone,
-                            context.BoardState, context.Owner)
-                        : context.SourceCard.CurrentPower;
-                    token.BonusPower += sourcePower;
+                    for (int copy = 0; copy < Math.Max(1, Copies); copy++)
+                    {
+                        if (!zone.CanAdd(side)) break;
+
+                        var token = new CardInstance(definition)
+                        {
+                            Location = CardLocation.Board,
+                            IsInPlay = true,
+                            PlayedTurn = 0,
+                            PlayedZoneIndex = -1
+                        };
+
+                        int sourcePower = 0;
+                        if ((CopySourcePower || CopySourcePowerAsSet) &&
+                            context.SourceCard != null)
+                        {
+                            sourcePower = context.BoardState?.PowerResolver != null
+                                ? context.BoardState.PowerResolver.CalculateCardPower(
+                                    context.SourceCard, context.SourceZone,
+                                    context.BoardState, context.Owner)
+                                : context.SourceCard.CurrentPower;
+                        }
+
+                        if (CopySourcePowerAsSet)
+                            token.SetBasePower(sourcePower);
+                        else if (CopySourcePower)
+                            token.BonusPower += sourcePower;
+
+                        if (PowerBonus != 0)
+                            token.BonusPower += PowerBonus;
+
+                        context.Actions.AddCardToZone(token, side, zone.ZoneIndex);
+                    }
                 }
-
-                context.Actions.AddCardToZone(token, context.Owner, zone.ZoneIndex);
             }
         }
     }
@@ -299,6 +517,7 @@ namespace SnapClone.Effects.Implementations
     {
         public string Source { get; set; } = "enemyHandRandom";
         public bool CopyToSelf { get; set; }
+        public int PowerBonus { get; set; }
 
         public override void Apply(EffectContext context)
         {
@@ -343,9 +562,20 @@ namespace SnapClone.Effects.Implementations
                 var hand = Series1EffectHelpers.HandFor(context.BoardState, enemy);
                 if (hand.Count > 0)
                 {
-                    int max = hand.Max(c => c.Definition.Cost);
+                    int max = hand.Max(c => c.EffectiveCost);
                     source = Series1EffectHelpers.PickRandom(
-                        hand.Where(c => c.Definition.Cost == max).ToList(),
+                        hand.Where(c => c.EffectiveCost == max).ToList(),
+                        context.Random);
+                }
+            }
+            else if (Source == "enemyHandLowestCost")
+            {
+                var hand = Series1EffectHelpers.HandFor(context.BoardState, enemy);
+                if (hand.Count > 0)
+                {
+                    int min = hand.Min(c => c.EffectiveCost);
+                    source = Series1EffectHelpers.PickRandom(
+                        hand.Where(c => c.EffectiveCost == min).ToList(),
                         context.Random);
                 }
             }
@@ -365,7 +595,11 @@ namespace SnapClone.Effects.Implementations
 
             var copyToHand = context.Actions.CreateCopy(source);
             if (copyToHand != null)
+            {
+                if (PowerBonus != 0)
+                    copyToHand.BonusPower += PowerBonus;
                 context.Actions.AddToHand(copyToHand, owner);
+            }
         }
     }
 
@@ -439,15 +673,21 @@ namespace SnapClone.Effects.Implementations
     public class ShuffleTokenEffect : CardEffectBase
     {
         public string TokenId { get; set; }
+        public string Target { get; set; } = "opponent";
+        public int Copies { get; set; } = 1;
 
         public override void Apply(EffectContext context)
         {
             if (context.CardRegistry == null || context.Actions == null) return;
 
             var definition = context.CardRegistry.Get(TokenId);
-            if (definition != null)
-                context.Actions.ShuffleTokenIntoDeck(
-                    Series1EffectHelpers.Other(context.Owner), definition);
+            if (definition == null) return;
+
+            var side = Target == "owner"
+                ? context.Owner
+                : Series1EffectHelpers.Other(context.Owner);
+            for (int i = 0; i < Math.Max(1, Copies); i++)
+                context.Actions.ShuffleTokenIntoDeck(side, definition);
         }
     }
 
@@ -480,7 +720,7 @@ namespace SnapClone.Effects.Implementations
                     return;
             }
 
-            context.SourceCard.BonusPower += Amount;
+            context.AddPower(context.SourceCard, Amount);
         }
     }
 
@@ -501,7 +741,7 @@ namespace SnapClone.Effects.Implementations
                 context.BoardState, context.Owner))
             {
                 if (ReferenceEquals(card, context.SourceCard)) continue;
-                card.BonusPower += Amount;
+                context.AddPower(card, Amount);
             }
         }
     }
@@ -517,7 +757,7 @@ namespace SnapClone.Effects.Implementations
             if (context.Event.DestinationZoneIndex != context.SourceZone.ZoneIndex)
                 return;
 
-            context.SourceCard.BonusPower += Amount;
+            context.AddPower(context.SourceCard, Amount);
         }
     }
 
@@ -601,7 +841,9 @@ namespace SnapClone.Effects.Implementations
         {
             if (context?.SourceCard == null) return false;
 
-            context.SourceCard.BonusPower += Amount;
+            context.AddPower(context.SourceCard, Amount);
+            context.Actions?.NotifyAddedToHand(context.SourceCard,
+                context.Owner, CardLocation.Discard);
             return true;
         }
     }
@@ -623,23 +865,24 @@ namespace SnapClone.Effects.Implementations
                 return false;
 
             var card = context.SourceCard;
-            card.BonusPower += Amount;
 
             var zones = context.BoardState.Zones
                 .Where(z => z.CanAdd(context.Owner))
                 .ToList();
 
             var target = Series1EffectHelpers.PickRandom(zones, context.Random);
-            if (target != null && context.Actions != null)
-            {
-                var placed = context.Actions.AddCardToZone(card, context.Owner,
-                    target.ZoneIndex);
-                if (placed.Success) return true;
-            }
 
-            context.Actions?.RemoveFromContainers(card, context.Owner);
-            card.Location = CardLocation.Destroyed;
-            card.IsInPlay = false;
+            // Sin espacio la carta no regenera: la accion normal la mueve a su
+            // pila de descartadas o destruidas.
+            if (target == null || context.Actions == null)
+                return false;
+
+            var placed = context.Actions.AddCardToZone(card, context.Owner,
+                target.ZoneIndex);
+            if (!placed.Success)
+                return false;
+
+            context.AddPower(card, Amount);
             return true;
         }
     }
@@ -669,16 +912,20 @@ namespace SnapClone.Effects.Implementations
     public class KlawZoneAdditionEffect : CardEffectBase, IZonePowerAddition
     {
         public int Amount { get; set; } = 6;
+        public string Direction { get; set; } = "right";
 
         public int GetAdditionForZone(EffectContext sourceContext,
             ZoneInstance targetZone, BoardSide targetSide)
         {
             if (sourceContext.SourceZone == null || targetZone == null) return 0;
             if (sourceContext.Owner != targetSide) return 0;
-            if (sourceContext.SourceZone.ZoneIndex + 1 != targetZone.ZoneIndex)
-                return 0;
 
-            return Amount;
+            int delta = targetZone.ZoneIndex - sourceContext.SourceZone.ZoneIndex;
+
+            if (Direction == "both")
+                return Math.Abs(delta) == 1 ? Amount : 0;
+
+            return delta == 1 ? Amount : 0;
         }
     }
 
@@ -708,6 +955,33 @@ namespace SnapClone.Effects.Implementations
                         ? Amount : 0;
                 case "handAtMostOne":
                     return hand.Count <= 1 ? Amount : 0;
+                case "discardCount":
+                    return Amount * context.BoardState.GetDiscardCount(context.Owner);
+                case "anyAllyZoneEmpty":
+                    foreach (var zone in context.BoardState.Zones)
+                    {
+                        if (zone.CardsFor(context.Owner).Count == 0)
+                            return Amount;
+                    }
+
+                    return 0;
+                case "enemyHandCount":
+                    return Amount * Series1EffectHelpers.HandFor(
+                        context.BoardState,
+                        Series1EffectHelpers.Other(context.Owner)).Count;
+                case "fullAllyLocations":
+                    int full = 0;
+                    foreach (var zone in context.BoardState.Zones)
+                    {
+                        if (zone.CardsFor(context.Owner).Count >= 4)
+                            full++;
+                    }
+
+                    return Amount * full;
+                case "bothSidesFull":
+                    return context.SourceZone.PlayerCards.Count >= 4 &&
+                           context.SourceZone.AICards.Count >= 4
+                        ? Amount : 0;
                 default:
                     return 0;
             }
@@ -733,11 +1007,11 @@ namespace SnapClone.Effects.Implementations
                 {
                     if (other.Definition == null) continue;
                     any = true;
-                    if (other.Definition.Cost > max)
-                        max = other.Definition.Cost;
+                    if (other.EffectiveCost > max)
+                        max = other.EffectiveCost;
                 }
 
-                return any && card.Definition != null && card.Definition.Cost == max
+                return any && card.Definition != null && card.EffectiveCost == max
                     ? Amount : 0;
             }
 

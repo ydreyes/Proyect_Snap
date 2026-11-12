@@ -47,6 +47,24 @@ namespace SnapClone.Gameplay.Cards
             return true;
         }
 
+        /// <summary>Retira una carta de una pila concreta (resurreccion).</summary>
+        public bool Remove(CardInstance card, PileKind kind)
+        {
+            if (card == null) return false;
+            return _piles[kind].Remove(card);
+        }
+
+        public bool Remove(CardInstance card)
+        {
+            if (card == null) return false;
+
+            bool removed = false;
+            foreach (var pile in _piles.Values)
+                removed |= pile.Remove(card);
+
+            return removed;
+        }
+
         public void Clear()
         {
             foreach (var pile in _piles.Values)

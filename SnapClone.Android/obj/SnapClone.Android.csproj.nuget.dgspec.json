@@ -5,7 +5,7 @@
   },
   "projects": {
     "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone.Android\\SnapClone.Android.csproj": {
-      "version": "1.0.0",
+      "version": "1.1.0",
       "restore": {
         "projectUniqueName": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone.Android\\SnapClone.Android.csproj",
         "projectName": "SnapClone.Android",
@@ -47,6 +47,10 @@
         "net9.0-android35.0": {
           "targetAlias": "net9.0-android",
           "dependencies": {
+            "FontStashSharp.MonoGame": {
+              "target": "Package",
+              "version": "[1.6.2, )"
+            },
             "Microsoft.NET.ILLink.Tasks": {
               "suppressParent": "All",
               "target": "Package",
@@ -85,6 +89,9 @@
         }
       },
       "runtimes": {
+        "android-arm": {
+          "#import": []
+        },
         "android-arm64": {
           "#import": []
         }

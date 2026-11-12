@@ -93,6 +93,14 @@ The system SHALL show a zone's identity, effect and current standing when it is 
 - **AND** it SHALL state the turn on which the zone will be revealed
 - **AND** it SHALL still show both power totals
 
+#### Scenario: Zone status
+
+- **WHEN** the zone detail panel opens for a zone the player can see
+- **THEN** it SHALL show `INUNDADA` when the location is flooded
+- **AND** it SHALL show `BLOQUEADA` when the location is play-locked or fully locked
+- **AND** the status SHALL match the location plaque
+- **AND** it SHALL NOT show a status for a zone the player cannot see
+
 ### Requirement: Detail Panel Dismissal
 
 The system SHALL close the detail panel on an explicit close action and return to the previous interaction state.
@@ -144,3 +152,67 @@ The system SHALL prevent board interaction while the detail panel is open.
 - **WHEN** the panel is open and the player presses on a hand card, a board card or a board slot
 - **THEN** no drag SHALL start and no card SHALL move
 - **AND** the tap SHALL close the panel instead
+
+### Requirement: Special Location Visibility
+
+The system SHALL show hidden location information to a side that has Uatu, and SHALL show the new definition after a location is replaced.
+
+#### Scenario: Uatu reveals the zone panel
+
+- **WHEN** the player controls Uatu and opens the detail panel for an unrevealed zone
+- **THEN** the panel SHALL show the location's name, art and effect text
+- **AND** the zone SHALL still be treated as unrevealed for reveal timing and effects
+- **AND** the panel SHALL still show both power totals
+
+#### Scenario: Uatu does not reveal to the rival
+
+- **WHEN** the player controls Uatu and the rival would view the same unrevealed zone
+- **THEN** the rival view SHALL keep the unknown marker
+- **AND** the real reveal order SHALL be unchanged
+
+#### Scenario: Replaced location detail
+
+- **WHEN** Scarlet Witch replaces a location
+- **THEN** the zone detail panel SHALL show the new location's name, art and effect
+- **AND** the panel SHALL keep the same zone index and power totals
+- **AND** the previous location's text SHALL no longer be shown
+
+### Requirement: Card Movement Status
+
+The system SHALL show whether a card can currently be moved by the player.
+
+#### Scenario: Moveable card
+
+- **WHEN** the card detail panel opens for Nightcrawler or Vision
+- **THEN** it SHALL show that the card is moveable
+- **AND** it SHALL show whether the move is currently available or already used
+- **AND** the status SHALL update after the card moves or the turn changes
+
+#### Scenario: Cloak window
+
+- **WHEN** the card detail panel opens during an active Cloak window
+- **THEN** it SHALL state that the card can move to Cloak's location
+- **AND** it SHALL NOT claim that the card can move to any other location
+
+#### Scenario: No movement ability
+
+- **WHEN** the card detail panel opens for a card without a movement permission
+- **THEN** it SHALL NOT show a movement status
+- **AND** it SHALL NOT imply that the card can be moved on a later turn
+
+### Requirement: Location Plaque Status
+
+The system SHALL expose flooded and locked status on the location plaque.
+
+#### Scenario: Plaque status
+
+- **WHEN** a location is flooded or play-locked
+- **THEN** the plaque SHALL show a short status label
+- **AND** the label SHALL remain legible at the smallest supported viewport
+- **AND** the plaque SHALL keep the location name, effect and power totals visible
+
+#### Scenario: Status clears
+
+- **WHEN** the flood or lock stops applying
+- **THEN** the plaque SHALL remove the status label in the same frame as the change
+- **AND** the location SHALL return to its normal presentation

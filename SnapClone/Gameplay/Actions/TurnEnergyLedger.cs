@@ -16,8 +16,17 @@ namespace SnapClone.Gameplay.Actions
         public int Charged { get; private set; }
         public int Refunded { get; private set; }
 
+        /// <summary>Energia extra concedida por un objeto; dura solo el turno.</summary>
+        public int Bonus { get; private set; }
+
         public int Available(int pool) =>
-            Math.Max(0, pool - (Charged - Refunded));
+            Math.Max(0, pool + Bonus - (Charged - Refunded));
+
+        public void GrantBonus(int amount)
+        {
+            if (amount > 0)
+                Bonus += amount;
+        }
 
         public bool IsCharged(CardInstance card) =>
             card != null && _charges.ContainsKey(card);
@@ -47,6 +56,7 @@ namespace SnapClone.Gameplay.Actions
             _charges.Clear();
             Charged = 0;
             Refunded = 0;
+            Bonus = 0;
         }
     }
 }

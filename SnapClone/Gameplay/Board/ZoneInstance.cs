@@ -27,6 +27,9 @@ namespace SnapClone.Gameplay.Board
         public bool IsRevealed { get; set; }
         public int ZoneIndex { get; set; }
 
+        /// <summary>Ultimo turno en el que se puede jugar aqui; -1 si no esta inundada.</summary>
+        public int FloodedLastPlayableTurn { get; private set; } = -1;
+
         /// <summary>
         /// Tablero al que pertenece la zona. Lo asigna BoardState para que los
         /// totales deleguen en el mismo PowerResolver que el resto del juego.
@@ -46,6 +49,57 @@ namespace SnapClone.Gameplay.Board
 
         public bool CanAdd(BoardSide side) =>
             CardsFor(side).Count < MaxCardsPerSide;
+
+        /// <summary>La locacion deja de aceptar cartas jugadas despues del turno de gracia.</summary>
+        public bool IsFlooded(int turn) =>
+            FloodedLastPlayableTurn >= 0 && turn > FloodedLastPlayableTurn;
+
+        public void Flood(int turn)
+        {
+            int lastPlayable = turn + 1;
+            if (lastPlayable > FloodedLastPlayableTurn)
+                FloodedLastPlayableTurn = lastPlayable;
+        }
+
+        public void ClearFlood()
+        {
+            FloodedLastPlayableTurn = -1;
+        }
+
+        /// <summary>
+        /// Quake: intercambia definicion, cartas, inundacion y restricciones
+        /// con otra posicion sin mover los indices ni las referencias.
+        /// </summary>
+        public void SwapContentWith(ZoneInstance other)
+        {
+            if (other == null || ReferenceEquals(this, other)) return;
+
+            var definition = Definition;
+            Definition = other.Definition;
+            other.Definition = definition;
+
+            var playerCards = PlayerCards;
+            PlayerCards = other.PlayerCards;
+            other.PlayerCards = playerCards;
+
+            var aiCards = AICards;
+            AICards = other.AICards;
+            other.AICards = aiCards;
+
+            var constraints = new List<IZonePlayConstraint>(PlayConstraints);
+            PlayConstraints.Clear();
+            PlayConstraints.AddRange(other.PlayConstraints);
+            other.PlayConstraints.Clear();
+            other.PlayConstraints.AddRange(constraints);
+
+            int flood = FloodedLastPlayableTurn;
+            FloodedLastPlayableTurn = other.FloodedLastPlayableTurn;
+            other.FloodedLastPlayableTurn = flood;
+
+            bool revealed = IsRevealed;
+            IsRevealed = other.IsRevealed;
+            other.IsRevealed = revealed;
+        }
 
         public bool CanPlay(CardInstance card, BoardSide side)
         {

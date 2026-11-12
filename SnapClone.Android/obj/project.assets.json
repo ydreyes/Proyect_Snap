@@ -2,6 +2,68 @@
   "version": 3,
   "targets": {
     "net9.0-android35.0": {
+      "Cyotek.Drawing.BitmapFont/2.0.4": {
+        "type": "package",
+        "compile": {
+          "lib/net5.0/Cyotek.Drawing.BitmapFont.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net5.0/Cyotek.Drawing.BitmapFont.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "FontStashSharp.Base/1.2.9": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/FontStashSharp.Base.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/FontStashSharp.Base.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "FontStashSharp.MonoGame/1.6.2": {
+        "type": "package",
+        "dependencies": {
+          "Cyotek.Drawing.BitmapFont": "2.0.4",
+          "FontStashSharp.Base": "1.2.9",
+          "FontStashSharp.Rasterizers.StbTrueTypeSharp": "1.2.9",
+          "StbImageSharp": "2.30.16"
+        },
+        "compile": {
+          "lib/net8.0/FontStashSharp.MonoGame.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/FontStashSharp.MonoGame.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "FontStashSharp.Rasterizers.StbTrueTypeSharp/1.2.9": {
+        "type": "package",
+        "dependencies": {
+          "FontStashSharp.Base": "1.2.9",
+          "StbTrueTypeSharp": "1.26.13"
+        },
+        "compile": {
+          "lib/net8.0/FontStashSharp.Rasterizers.StbTrueTypeSharp.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/FontStashSharp.Rasterizers.StbTrueTypeSharp.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Microsoft.NET.ILLink.Tasks/9.0.22": {
         "type": "package",
         "build": {
@@ -82,9 +144,209 @@
             "rid": "win-x64"
           }
         }
+      },
+      "StbImageSharp/2.30.16": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/StbImageSharp.dll": {}
+        },
+        "runtime": {
+          "lib/net8.0/StbImageSharp.dll": {}
+        }
+      },
+      "StbTrueTypeSharp/1.26.13": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/StbTrueTypeSharp.dll": {}
+        },
+        "runtime": {
+          "lib/net8.0/StbTrueTypeSharp.dll": {}
+        }
+      }
+    },
+    "net9.0-android35.0/android-arm": {
+      "Cyotek.Drawing.BitmapFont/2.0.4": {
+        "type": "package",
+        "compile": {
+          "lib/net5.0/Cyotek.Drawing.BitmapFont.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net5.0/Cyotek.Drawing.BitmapFont.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "FontStashSharp.Base/1.2.9": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/FontStashSharp.Base.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/FontStashSharp.Base.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "FontStashSharp.MonoGame/1.6.2": {
+        "type": "package",
+        "dependencies": {
+          "Cyotek.Drawing.BitmapFont": "2.0.4",
+          "FontStashSharp.Base": "1.2.9",
+          "FontStashSharp.Rasterizers.StbTrueTypeSharp": "1.2.9",
+          "StbImageSharp": "2.30.16"
+        },
+        "compile": {
+          "lib/net8.0/FontStashSharp.MonoGame.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/FontStashSharp.MonoGame.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "FontStashSharp.Rasterizers.StbTrueTypeSharp/1.2.9": {
+        "type": "package",
+        "dependencies": {
+          "FontStashSharp.Base": "1.2.9",
+          "StbTrueTypeSharp": "1.26.13"
+        },
+        "compile": {
+          "lib/net8.0/FontStashSharp.Rasterizers.StbTrueTypeSharp.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/FontStashSharp.Rasterizers.StbTrueTypeSharp.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Microsoft.NET.ILLink.Tasks/9.0.22": {
+        "type": "package",
+        "build": {
+          "build/Microsoft.NET.ILLink.Tasks.props": {}
+        }
+      },
+      "MonoGame.Content.Builder.Task/3.8.6": {
+        "type": "package",
+        "build": {
+          "build/MonoGame.Content.Builder.Task.props": {},
+          "build/MonoGame.Content.Builder.Task.targets": {}
+        }
+      },
+      "MonoGame.Framework.Android/3.8.6": {
+        "type": "package",
+        "dependencies": {
+          "MonoGame.Library.OpenAL": "1.24.3.2"
+        },
+        "compile": {
+          "lib/net8.0-android34.0/MonoGame.Framework.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0-android34.0/MonoGame.Framework.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "build/MonoGame.Framework.Android.targets": {}
+        }
+      },
+      "MonoGame.Library.OpenAL/1.24.3.2": {
+        "type": "package",
+        "native": {
+          "runtimes/android-arm/native/libopenal.so": {}
+        }
+      },
+      "StbImageSharp/2.30.16": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/StbImageSharp.dll": {}
+        },
+        "runtime": {
+          "lib/net8.0/StbImageSharp.dll": {}
+        }
+      },
+      "StbTrueTypeSharp/1.26.13": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/StbTrueTypeSharp.dll": {}
+        },
+        "runtime": {
+          "lib/net8.0/StbTrueTypeSharp.dll": {}
+        }
       }
     },
     "net9.0-android35.0/android-arm64": {
+      "Cyotek.Drawing.BitmapFont/2.0.4": {
+        "type": "package",
+        "compile": {
+          "lib/net5.0/Cyotek.Drawing.BitmapFont.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net5.0/Cyotek.Drawing.BitmapFont.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "FontStashSharp.Base/1.2.9": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/FontStashSharp.Base.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/FontStashSharp.Base.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "FontStashSharp.MonoGame/1.6.2": {
+        "type": "package",
+        "dependencies": {
+          "Cyotek.Drawing.BitmapFont": "2.0.4",
+          "FontStashSharp.Base": "1.2.9",
+          "FontStashSharp.Rasterizers.StbTrueTypeSharp": "1.2.9",
+          "StbImageSharp": "2.30.16"
+        },
+        "compile": {
+          "lib/net8.0/FontStashSharp.MonoGame.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/FontStashSharp.MonoGame.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "FontStashSharp.Rasterizers.StbTrueTypeSharp/1.2.9": {
+        "type": "package",
+        "dependencies": {
+          "FontStashSharp.Base": "1.2.9",
+          "StbTrueTypeSharp": "1.26.13"
+        },
+        "compile": {
+          "lib/net8.0/FontStashSharp.Rasterizers.StbTrueTypeSharp.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/FontStashSharp.Rasterizers.StbTrueTypeSharp.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Microsoft.NET.ILLink.Tasks/9.0.22": {
         "type": "package",
         "build": {
@@ -122,10 +384,115 @@
         "native": {
           "runtimes/android-arm64/native/libopenal.so": {}
         }
+      },
+      "StbImageSharp/2.30.16": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/StbImageSharp.dll": {}
+        },
+        "runtime": {
+          "lib/net8.0/StbImageSharp.dll": {}
+        }
+      },
+      "StbTrueTypeSharp/1.26.13": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/StbTrueTypeSharp.dll": {}
+        },
+        "runtime": {
+          "lib/net8.0/StbTrueTypeSharp.dll": {}
+        }
       }
     }
   },
   "libraries": {
+    "Cyotek.Drawing.BitmapFont/2.0.4": {
+      "sha512": "iA6WehGVdMUuNbfsQQDq/Bt+mMd/OqHjiMUtKFLIQd/0pyYh4ehT7FEjTxN9/4OXNKQZsp9bAJgltP2nnswUJg==",
+      "type": "package",
+      "path": "cyotek.drawing.bitmapfont/2.0.4",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "cyotek.drawing.bitmapfont.2.0.4.nupkg.sha512",
+        "cyotek.drawing.bitmapfont.nuspec",
+        "icon.png",
+        "lib/net35/Cyotek.Drawing.BitmapFont.dll",
+        "lib/net35/Cyotek.Drawing.BitmapFont.xml",
+        "lib/net40/Cyotek.Drawing.BitmapFont.dll",
+        "lib/net40/Cyotek.Drawing.BitmapFont.xml",
+        "lib/net452/Cyotek.Drawing.BitmapFont.dll",
+        "lib/net452/Cyotek.Drawing.BitmapFont.xml",
+        "lib/net462/Cyotek.Drawing.BitmapFont.dll",
+        "lib/net462/Cyotek.Drawing.BitmapFont.xml",
+        "lib/net472/Cyotek.Drawing.BitmapFont.dll",
+        "lib/net472/Cyotek.Drawing.BitmapFont.xml",
+        "lib/net48/Cyotek.Drawing.BitmapFont.dll",
+        "lib/net48/Cyotek.Drawing.BitmapFont.xml",
+        "lib/net5.0/Cyotek.Drawing.BitmapFont.dll",
+        "lib/net5.0/Cyotek.Drawing.BitmapFont.xml",
+        "lib/netcoreapp2.1/Cyotek.Drawing.BitmapFont.dll",
+        "lib/netcoreapp2.1/Cyotek.Drawing.BitmapFont.xml",
+        "lib/netcoreapp2.2/Cyotek.Drawing.BitmapFont.dll",
+        "lib/netcoreapp2.2/Cyotek.Drawing.BitmapFont.xml",
+        "lib/netcoreapp3.1/Cyotek.Drawing.BitmapFont.dll",
+        "lib/netcoreapp3.1/Cyotek.Drawing.BitmapFont.xml",
+        "lib/netstandard1.3/Cyotek.Drawing.BitmapFont.dll",
+        "lib/netstandard1.3/Cyotek.Drawing.BitmapFont.xml",
+        "lib/netstandard2.0/Cyotek.Drawing.BitmapFont.dll",
+        "lib/netstandard2.0/Cyotek.Drawing.BitmapFont.xml",
+        "lib/netstandard2.1/Cyotek.Drawing.BitmapFont.dll",
+        "lib/netstandard2.1/Cyotek.Drawing.BitmapFont.xml"
+      ]
+    },
+    "FontStashSharp.Base/1.2.9": {
+      "sha512": "zMzQ94gep2w7l23xO/PsRmzlXgUt6E+lD14Ob89/HP647sL+2OGGZB5dqsUprpCmjrOZ188FT8Lne6MkJIdRJg==",
+      "type": "package",
+      "path": "fontstashsharp.base/1.2.9",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "fontstashsharp.base.1.2.9.nupkg.sha512",
+        "fontstashsharp.base.nuspec",
+        "lib/net471/FontStashSharp.Base.dll",
+        "lib/net471/FontStashSharp.Base.xml",
+        "lib/net8.0/FontStashSharp.Base.dll",
+        "lib/net8.0/FontStashSharp.Base.xml",
+        "lib/netstandard2.0/FontStashSharp.Base.dll",
+        "lib/netstandard2.0/FontStashSharp.Base.xml"
+      ]
+    },
+    "FontStashSharp.MonoGame/1.6.2": {
+      "sha512": "P7tgIvG1lpDRPPlrQnsxB/L1px7n+930iShLecDeuNJwPN9vjl6BzCtQA8AT8MGMKkEUi0q1fokt8KnECqNmrg==",
+      "type": "package",
+      "path": "fontstashsharp.monogame/1.6.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "fontstashsharp.monogame.1.6.2.nupkg.sha512",
+        "fontstashsharp.monogame.nuspec",
+        "lib/net8.0/FontStashSharp.MonoGame.dll",
+        "lib/net8.0/FontStashSharp.MonoGame.xml",
+        "lib/netstandard2.0/FontStashSharp.MonoGame.dll",
+        "lib/netstandard2.0/FontStashSharp.MonoGame.xml"
+      ]
+    },
+    "FontStashSharp.Rasterizers.StbTrueTypeSharp/1.2.9": {
+      "sha512": "Az2CG8oQGDvsI3eK1FjCQmf9VbnQizNi5myzAHxZ3gM26haPPuCjY4uTFRwKFbCcpJ1yhQubF4x0pZvbyw9UgA==",
+      "type": "package",
+      "path": "fontstashsharp.rasterizers.stbtruetypesharp/1.2.9",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "fontstashsharp.rasterizers.stbtruetypesharp.1.2.9.nupkg.sha512",
+        "fontstashsharp.rasterizers.stbtruetypesharp.nuspec",
+        "lib/net471/FontStashSharp.Rasterizers.StbTrueTypeSharp.dll",
+        "lib/net471/FontStashSharp.Rasterizers.StbTrueTypeSharp.xml",
+        "lib/net8.0/FontStashSharp.Rasterizers.StbTrueTypeSharp.dll",
+        "lib/net8.0/FontStashSharp.Rasterizers.StbTrueTypeSharp.xml",
+        "lib/netstandard2.0/FontStashSharp.Rasterizers.StbTrueTypeSharp.dll",
+        "lib/netstandard2.0/FontStashSharp.Rasterizers.StbTrueTypeSharp.xml"
+      ]
+    },
     "Microsoft.NET.ILLink.Tasks/9.0.22": {
       "sha512": "S61AsICGqZii54jXMY56s6xvu3PcIe9VPeBxcTAWwNt5P21l2Arcy36XfATNvZAEqoAH7OfGNzng+aoXkqhsxQ==",
       "type": "package",
@@ -231,10 +598,39 @@
         "runtimes/osx/native/libopenal.dylib",
         "runtimes/win-x64/native/openal.dll"
       ]
+    },
+    "StbImageSharp/2.30.16": {
+      "sha512": "qg1i+NHihXVKLKYacGKrauhSQIGL31eBWcTC4Vc7jnGmBFj87LkRuCdXB5aDZisWMRnB6x2mcfwYXQxMWEG/lw==",
+      "type": "package",
+      "path": "stbimagesharp/2.30.16",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/net471/StbImageSharp.dll",
+        "lib/net8.0/StbImageSharp.dll",
+        "lib/netstandard2.0/StbImageSharp.dll",
+        "stbimagesharp.2.30.16.nupkg.sha512",
+        "stbimagesharp.nuspec"
+      ]
+    },
+    "StbTrueTypeSharp/1.26.13": {
+      "sha512": "vfl9hIROP2CeDSqPTVxfXrH/ZaFN6o6h0EsoG9aSzErrXUTwp8bZ4NpycVMSKtdmPGBI4eyvTIg1yzGs1jthMw==",
+      "type": "package",
+      "path": "stbtruetypesharp/1.26.13",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/net471/StbTrueTypeSharp.dll",
+        "lib/net8.0/StbTrueTypeSharp.dll",
+        "lib/netstandard2.0/StbTrueTypeSharp.dll",
+        "stbtruetypesharp.1.26.13.nupkg.sha512",
+        "stbtruetypesharp.nuspec"
+      ]
     }
   },
   "projectFileDependencyGroups": {
     "net9.0-android35.0": [
+      "FontStashSharp.MonoGame >= 1.6.2",
       "Microsoft.NET.ILLink.Tasks >= 9.0.22",
       "MonoGame.Content.Builder.Task >= 3.8.6",
       "MonoGame.Framework.Android >= 3.8.6"
@@ -244,7 +640,7 @@
     "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\.nuget\\packages\\": {}
   },
   "project": {
-    "version": "1.0.0",
+    "version": "1.1.0",
     "restore": {
       "projectUniqueName": "C:\\Users\\yandri.reyes.INTEGRITYSOLUTI\\source\\repos\\SnapClone\\SnapClone.Android\\SnapClone.Android.csproj",
       "projectName": "SnapClone.Android",
@@ -286,6 +682,10 @@
       "net9.0-android35.0": {
         "targetAlias": "net9.0-android",
         "dependencies": {
+          "FontStashSharp.MonoGame": {
+            "target": "Package",
+            "version": "[1.6.2, )"
+          },
           "Microsoft.NET.ILLink.Tasks": {
             "suppressParent": "All",
             "target": "Package",
@@ -324,6 +724,9 @@
       }
     },
     "runtimes": {
+      "android-arm": {
+        "#import": []
+      },
       "android-arm64": {
         "#import": []
       }

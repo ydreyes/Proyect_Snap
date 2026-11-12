@@ -36,3 +36,9 @@ C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\obj\Debug
 C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\obj\Debug\net9.0\SnapClone.pdb
 C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\obj\Debug\net9.0\SnapClone.genruntimeconfig.cache
 C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\obj\Debug\net9.0\ref\SnapClone.dll
+C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\bin\Debug\net9.0\Cyotek.Drawing.BitmapFont.dll
+C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\bin\Debug\net9.0\FontStashSharp.Base.dll
+C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\bin\Debug\net9.0\FontStashSharp.MonoGame.dll
+C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\bin\Debug\net9.0\FontStashSharp.Rasterizers.StbTrueTypeSharp.dll
+C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\bin\Debug\net9.0\StbImageSharp.dll
+C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone\bin\Debug\net9.0\StbTrueTypeSharp.dll

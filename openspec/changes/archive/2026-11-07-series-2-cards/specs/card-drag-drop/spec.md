@@ -1,0 +1,130 @@
+# Spec Delta
+
+## MODIFIED Requirements
+
+### Requirement: Card Dragging
+
+The system SHALL allow dragging cards from the player hand, and from a player slot when the card was played during the current turn or when its printed movement permission or an active movement window allows moving it, during PlayPhase, once the pointer moves beyond the tap threshold.
+
+#### Scenario: Start drag
+
+- **WHEN** player presses a card in their hand during PlayPhase and moves the pointer beyond the tap threshold
+- **THEN** the card SHALL become draggable
+- **AND** the card SHALL follow the mouse/finger position
+- **AND** the card SHALL maintain drag offset
+
+#### Scenario: Start drag from board
+
+- **WHEN** player presses a card placed in a player slot during PlayPhase that was played during the current turn and moves the pointer beyond the tap threshold
+- **THEN** the card SHALL be lifted from its slot and become draggable
+- **AND** the slot SHALL be shown as free while the drag is active
+- **AND** the zone power totals SHALL exclude the lifted card until it is placed again
+
+#### Scenario: Older board card stays locked
+
+- **WHEN** player presses a card placed in a player slot during PlayPhase that was played on an earlier turn and moves the pointer beyond the tap threshold
+- **AND** the card has no printed movement permission and no active movement window applies
+- **THEN** no drag SHALL start
+- **AND** the card SHALL remain in its slot
+- **AND** the card SHALL NOT be lifted, moved to the hand or moved to another slot
+- **AND** the zone power totals SHALL NOT change
+- **AND** the available energy SHALL NOT change
+
+#### Scenario: Older moveable card can be lifted
+
+- **WHEN** player presses a card played on an earlier turn that has an unused printed movement permission or is covered by an active Cloak window
+- **THEN** the card SHALL be lifted and become draggable
+- **AND** its slot SHALL be shown as free while the drag is active
+- **AND** dropping it on a legal destination SHALL resolve the permitted move
+- **AND** dropping it on the hand area SHALL return it to its origin slot
+
+#### Scenario: Press without movement
+
+- **WHEN** player presses a card and releases it without moving beyond the tap threshold
+- **THEN** no drag SHALL start
+- **AND** the card SHALL NOT be lifted, removed from the hand or removed from its slot
+- **AND** no energy SHALL be reserved
+- **AND** the tap SHALL open the card detail panel
+
+### Requirement: Energy Refund on Return
+
+The system SHALL release the energy of a card returned to the hand. Only a card played during the current turn may return from the board to the hand; a card from an earlier turn may be lifted only to perform a permitted move and SHALL NOT return to the hand.
+
+#### Scenario: Drag from board to hand
+
+- **WHEN** a card played during the current turn is dragged from the board to the hand area
+- **THEN** the card SHALL leave the board
+- **AND** its cost SHALL be returned to the available energy
+
+#### Scenario: Card from an earlier turn
+
+- **WHEN** a card played on an earlier turn is dragged from the board to the hand area
+- **THEN** the return SHALL be rejected
+- **AND** the card SHALL return to its origin slot
+- **AND** the available energy SHALL NOT change
+- **AND** an unused movement permission SHALL remain unused
+
+## ADDED Requirements
+
+### Requirement: Moveable Cards
+
+The system SHALL support cards whose printed abilities allow moving them after the turn they were played.
+
+#### Scenario: Nightcrawler
+
+- **WHEN** Nightcrawler is moved on a turn later than the turn it was played
+- **THEN** the move SHALL be allowed once per combat
+- **AND** a later move of the same instance SHALL be rejected
+- **AND** the destination SHALL have room and SHALL NOT be closed to movement
+
+#### Scenario: Vision
+
+- **WHEN** Vision is moved on a turn later than the turn it was played
+- **THEN** the move SHALL be allowed once per turn
+- **AND** a second move of the same instance in the same turn SHALL be rejected
+- **AND** the permission SHALL reset at the start of the next turn
+
+#### Scenario: Same-turn move does not consume
+
+- **WHEN** a card with a printed movement permission is moved during the turn it was played
+- **THEN** the move SHALL resolve under the normal same-turn movement rule
+- **AND** the printed permission SHALL remain unused
+- **AND** the card SHALL still be able to use it on a later turn
+
+#### Scenario: Failed move
+
+- **WHEN** a permitted move is dropped on an illegal destination
+- **THEN** the card SHALL return to its origin slot
+- **AND** the movement permission SHALL remain unused
+- **AND** the zone power totals and energy SHALL remain unchanged
+
+### Requirement: Cloak Movement Window
+
+The system SHALL support a temporary window that lets any card move to a specific location on the following turn.
+
+#### Scenario: Window opens
+
+- **WHEN** Cloak is revealed on turn N
+- **THEN** during turn N + 1 any card in play may be moved to Cloak's location
+- **AND** the window SHALL apply to both sides
+- **AND** the destination SHALL have room and SHALL NOT be closed to movement
+
+#### Scenario: Window scope
+
+- **WHEN** the window is active
+- **THEN** it SHALL only authorize moves whose destination is Cloak's location
+- **AND** a move to another location SHALL use the normal movement rules
+- **AND** the window SHALL NOT authorize returning a card to hand
+
+#### Scenario: Window usage
+
+- **WHEN** a card is moved through a window
+- **THEN** that card SHALL NOT be moved through the same window again
+- **AND** the printed movement permission of the card SHALL remain unused
+- **AND** the window SHALL expire at the end of the turn
+
+#### Scenario: Window blocked
+
+- **WHEN** Cloak's location is full or Professor X's full lock blocks the addition
+- **THEN** the window SHALL NOT allow the move
+- **AND** the card SHALL remain in its origin

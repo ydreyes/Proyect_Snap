@@ -13,6 +13,7 @@ namespace SnapClone.Effects
     {
         public CardInstance SourceCard { get; set; }
         public ZoneInstance SourceZone { get; set; }
+        public ZoneInstance TargetZone { get; set; }
         public BoardSide Owner { get; set; }
         public List<CardInstance> Targets { get; set; } = new List<CardInstance>();
         public BoardState BoardState { get; set; }
@@ -31,6 +32,21 @@ namespace SnapClone.Effects
         public ICardEffectActions Actions { get; set; }
 
         public RandomService Random { get; set; }
+
+        /// <summary>
+        /// Suma Poder por la autoridad comun: respeta Unstoppable y dispara
+        /// Empowered salvo que el origen sea Reinforce.
+        /// </summary>
+        public void AddPower(CardInstance card, int amount,
+            bool empowered = true)
+        {
+            if (card == null) return;
+
+            if (Actions != null)
+                Actions.AddBonusPower(card, amount, empowered);
+            else
+                card.BonusPower += amount;
+        }
     }
 
     public interface IEffect
@@ -90,6 +106,76 @@ namespace SnapClone.Effects
         bool TryReplaceDiscard(EffectContext context);
     }
 
+    /// <summary>Descuento continuo sobre el coste efectivo de la carta.</summary>
+    public interface ICardCostModifier
+    {
+        int GetCostReduction(EffectContext context);
+    }
+
+    /// <summary>Apex: duplica el poder final mientras se cumpla la condicion.</summary>
+    public interface IPowerDoubler
+    {
+        bool ShouldDouble(EffectContext context);
+    }
+
+    /// <summary>Reinforce: reacciona al evento Empowered.</summary>
+    public interface IEmpoweredReactor
+    {
+        void OnEmpowered(EffectContext context, int amount);
+    }
+
+    /// <summary>Marca un perk que permite un movimiento manual por combate.</summary>
+    public interface IPlayerMovePermission
+    {
+    }
+
+    /// <summary>Restriccion impresa que decide si la carta puede jugarse.</summary>
+    public interface IPlayRestriction
+    {
+        bool IsPlayable(EffectContext context);
+    }
+
+    /// <summary>Permiso de movimiento impreso, con su frecuencia.</summary>
+    public interface IMovePermission
+    {
+        MovePermission Frequency { get; }
+    }
+
+    /// <summary>Marca una carta que repite los OnReveal aliados de su zona, como Odin.</summary>
+    public interface IRepeatOnRevealAtLocation
+    {
+    }
+
+    /// <summary>Unstoppable: puede jugarse ignorando restricciones de zona.</summary>
+    public interface IPlayAnywhere
+    {
+    }
+
+    /// <summary>Unstoppable: rechaza destrucciones.</summary>
+    public interface IDestroyImmune
+    {
+    }
+
+    /// <summary>Unstoppable: ignora reducciones negativas de Poder.</summary>
+    public interface IPowerReductionImmune
+    {
+    }
+
+    /// <summary>Amplify: repite el efecto Continuo del anfitrion.</summary>
+    public interface IRepeatOngoing
+    {
+    }
+
+    /// <summary>Encore: repite el efecto Al revelarse del anfitrion.</summary>
+    public interface IRepeatOnReveal
+    {
+    }
+
+    /// <summary>Overtime: repite el efecto de Fin de turno del anfitrion.</summary>
+    public interface IRepeatEndOfTurn
+    {
+    }
+
     /// <summary>
     /// Operaciones que un efecto puede ejecutar sin mutar el tablero por su
     /// cuenta. La implementa CardActionService.
@@ -98,6 +184,7 @@ namespace SnapClone.Effects
     {
         ActionResult DestroyCard(CardInstance card, BoardSide side,
             ActionCause cause = ActionCause.Effect);
+        ActionResult ReturnToHand(CardInstance card, BoardSide side);
         ActionResult DiscardCard(CardInstance card, BoardSide side,
             ActionCause cause = ActionCause.Effect);
         ActionResult MoveCard(CardInstance card, BoardSide side,
@@ -113,10 +200,31 @@ namespace SnapClone.Effects
         ActionResult Transform(CardInstance card, CardDef newDefinition);
         ActionResult MergeInto(CardInstance host, CardInstance merged, BoardSide side);
         ActionResult ReplaceZone(int zoneIndex);
+        ActionResult ReplaceZoneWith(int zoneIndex, string zoneId);
+        ActionResult SwitchSides(CardInstance card, BoardSide side, int zoneIndex);
+        ActionResult PullTopDeckToZone(BoardSide side, int zoneIndex, bool reveal);
+        ActionResult ReplaceWithToken(CardInstance source, BoardSide side,
+            CardDef tokenDefinition);
+        ActionResult NotifyAddedToHand(CardInstance card, BoardSide side,
+            CardLocation origin);
         ActionResult BuffTopCard(BoardSide side, int amount);
         ActionResult DrawFromEnemyDeck(BoardSide side);
         ActionResult ShuffleTokenIntoDeck(BoardSide side, CardDef tokenDefinition);
         ActionResult BanishLowestCost(BoardSide side, bool combatScoped);
+        ActionResult AddEnergy(BoardSide side, int amount);
+        DrawResult DrawCard(BoardSide side);
+        ActionResult DrawSpecificFromDeck(CardInstance card, BoardSide side);
+        ActionResult ResurrectFromPile(CardInstance card, BoardSide side,
+            int zoneIndex);
+        ActionResult CopyToOtherZones(CardInstance source, BoardSide side);
+        ActionResult SwapZones(int zoneA, int zoneB);
+        ActionResult PullEnemyHandCard(BoardSide owner, int zoneIndex);
+        ActionResult DiscardFromEnemyHand(BoardSide owner, string selection);
+        ActionResult ChangeMaxEnergy(BoardSide side, int delta);
+        ActionResult AddNextTurnEnergy(BoardSide side, int amount);
+        void MarkCreated(CardInstance card);
+        ActionResult AddBonusPower(CardInstance card, int amount,
+            bool dispatchEmpowered = true);
         void RefreshPowers();
     }
 }

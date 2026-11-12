@@ -18,7 +18,11 @@ namespace SnapClone.Gameplay.Cards
             {
                 Location = source.Location,
                 IsInPlay = false,
-                BonusPower = copyPower ? source.BonusPower : 0
+                BasePowerOverride = copyPower ? source.BasePowerOverride : null,
+                PowerDelta = copyPower ? source.PowerDelta : 0,
+                PerkPowerBonus = copyPower ? source.PerkPowerBonus : 0,
+                BonusPower = copyPower ? source.BonusPower : 0,
+                IsCreated = true
             };
 
             if (copyPerks && source.AttachedPerks != null)

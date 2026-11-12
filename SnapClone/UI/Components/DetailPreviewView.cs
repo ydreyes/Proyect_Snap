@@ -2,6 +2,7 @@ using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SnapClone.Core.Layout;
+using SnapClone.Data.Definitions;
 using SnapClone.Gameplay.Board;
 using SnapClone.Gameplay.Cards;
 using SnapClone.UI.Primitives;
@@ -27,24 +28,32 @@ namespace SnapClone.UI.Components
         public CardInstance Card { get; private set; }
         public ZoneInstance Zone { get; private set; }
         public BoardSide Side { get; private set; } = BoardSide.Player;
+        public string CardStatus { get; private set; }
+        public string ZoneStatus { get; private set; }
+        public bool CanActivate { get; set; }
 
-        public void OpenCard(CardInstance card, BoardSide side)
+        public void OpenCard(CardInstance card, BoardSide side,
+            string status = null)
         {
             if (card == null) return;
 
             Card = card;
             Side = side;
             Zone = null;
+            CardStatus = status;
+            ZoneStatus = null;
             Kind = DetailKind.Card;
             IsOpen = true;
         }
 
-        public void OpenZone(ZoneInstance zone)
+        public void OpenZone(ZoneInstance zone, string status = null)
         {
             if (zone == null) return;
 
             Zone = zone;
             Card = null;
+            CardStatus = null;
+            ZoneStatus = status;
             Kind = DetailKind.Zone;
             IsOpen = true;
         }
@@ -54,11 +63,21 @@ namespace SnapClone.UI.Components
             IsOpen = false;
             Card = null;
             Zone = null;
+            CardStatus = null;
+            ZoneStatus = null;
         }
 
         public Rectangle GetBounds(LayoutManager layout) => layout.DetailPanel;
 
         public Rectangle GetCloseBounds(LayoutManager layout) => layout.DetailPanelClose;
+
+        public Rectangle GetActivateBounds(LayoutManager layout)
+        {
+            var panel = layout.DetailPanel;
+            int pad = Math.Max(10, panel.Width / 28);
+            return new Rectangle(panel.X + pad * 2,
+                panel.Bottom - pad * 5 - 48, panel.Width - pad * 4, 40);
+        }
 
         public void Draw(SpriteBatch spriteBatch, ShapeDrawer shapes, FontService fonts,
             LayoutManager layout)
@@ -103,7 +122,7 @@ namespace SnapClone.UI.Components
         {
             int pad = Math.Max(10, panel.Width / 28);
             int top = panel.Y + pad * 2;
-            int bottom = panel.Bottom - pad * 5;
+            int bottom = panel.Bottom - pad * 5 - (CanActivate ? 52 : 0);
             int contentHeight = Math.Max(20, bottom - top);
 
             var cardArea = new Rectangle(
@@ -133,18 +152,63 @@ namespace SnapClone.UI.Components
             _cardView.SnapTo(cardRect);
             _cardView.DrawInHand(spriteBatch, shapes, fonts, cardRect);
 
+            int textTop = cardRect.Bottom + pad;
+            var theme = Card?.Definition?.DraftTheme;
+            if (theme.HasValue)
+            {
+                var themeRect = new Rectangle(
+                    panel.X + pad * 2,
+                    textTop,
+                    panel.Width - pad * 4,
+                    Math.Max(18, pad));
+
+                fonts.DrawTextCenteredFit(spriteBatch,
+                    $"TEMA: {DraftThemeText.Label(theme.Value)}",
+                    themeRect, CardView.DraftThemeColor(theme.Value), 0.55f, 0.32f);
+
+                textTop = themeRect.Bottom + pad / 2;
+            }
+
+            if (!string.IsNullOrWhiteSpace(CardStatus))
+            {
+                var statusRect = new Rectangle(
+                    panel.X + pad * 2,
+                    textTop,
+                    panel.Width - pad * 4,
+                    Math.Max(18, pad));
+
+                fonts.DrawTextCenteredFit(spriteBatch, CardStatus, statusRect,
+                    new Color(255, 200, 120), 0.5f, 0.28f);
+
+                textTop = statusRect.Bottom + pad / 2;
+            }
+
             var textArea = new Rectangle(
                 panel.X + pad * 2,
-                cardRect.Bottom + pad,
+                textTop,
                 panel.Width - pad * 4,
-                Math.Max(20, bottom - cardRect.Bottom - pad));
+                Math.Max(20, bottom - textTop));
 
-            string description = Card?.Definition?.Description;
+            string description = Card?.AbilityTextOverride;
+            if (string.IsNullOrEmpty(description))
+                description = Card?.Definition?.Description;
             if (string.IsNullOrEmpty(description))
                 description = "Sin descripcion.";
+            if (Card?.CopiedEffectIds != null && Card.CopiedEffectIds.Count > 0)
+                description = "COPIA. " + description;
 
             fonts.DrawTextWrapped(spriteBatch, description, textArea,
                 new Color(236, 238, 244), 0.5f);
+
+            if (CanActivate)
+            {
+                var button = new Rectangle(panel.X + pad * 2,
+                    panel.Bottom - pad * 5 - 48, panel.Width - pad * 4, 40);
+                shapes.DrawBeveledPanel(button, new Color(30, 104, 74),
+                    new Color(126, 214, 170), 3, 10);
+                fonts.DrawTextCentered(spriteBatch, "ACTIVAR", button,
+                    Color.White, 0.7f);
+            }
         }
 
         private void DrawZone(SpriteBatch spriteBatch, ShapeDrawer shapes, FontService fonts,
@@ -188,6 +252,21 @@ namespace SnapClone.UI.Components
             }
 
             int effectTop = nameRect.Bottom + pad / 2;
+
+            if (visible && !string.IsNullOrWhiteSpace(ZoneStatus))
+            {
+                var statusRect = new Rectangle(
+                    panel.X + pad * 2,
+                    effectTop,
+                    panel.Width - pad * 4,
+                    Math.Max(18, pad));
+
+                fonts.DrawTextCenteredFit(spriteBatch, ZoneStatus, statusRect,
+                    new Color(255, 200, 120), 0.5f, 0.28f);
+
+                effectTop = statusRect.Bottom + pad / 2;
+            }
+
             int totalsHeight = Math.Max(44, (int)(contentHeight * 0.17f));
             int effectBottom = bottom - totalsHeight - pad;
             var effectArea = new Rectangle(

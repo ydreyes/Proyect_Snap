@@ -14,12 +14,11 @@ namespace SnapClone.Gameplay.Combat
     /// </summary>
     public class PowerResolver
     {
-        private readonly PerkRegistry _perkRegistry;
         private readonly EffectProcessor _effectProcessor;
 
-        public PowerResolver(PerkRegistry perkRegistry = null, EffectProcessor effectProcessor = null)
+        public PowerResolver(PerkRegistry perkRegistry = null,
+            EffectProcessor effectProcessor = null)
         {
-            _perkRegistry = perkRegistry;
             _effectProcessor = effectProcessor;
         }
 
@@ -32,14 +31,20 @@ namespace SnapClone.Gameplay.Combat
         {
             if (card?.Definition == null) return 0;
 
-            int power = card.Definition.BasePower +
-                GetPerkPowerBonus(card) +
-                card.BonusPower;
+            // El bonus de perk se cachea en la instancia para que EffectivePower
+            // funcione tambien fuera de combate. Se refresca antes de leerlo.
+            RefreshPerkBonus(card);
+
+            int power = card.EffectivePower;
 
             if (_effectProcessor != null && zone != null)
             {
                 power += _effectProcessor.GetCardPowerBonus(card, zone, boardState, owner);
                 power += _effectProcessor.GetZoneCardPowerBonus(zone, card, owner);
+
+                // Apex duplica desde el valor ya bonificado y nunca se acumula:
+                // cada recalculo parte de EffectivePower y repite el mismo calculo.
+                power *= _effectProcessor.GetPowerMultiplier(card, zone, boardState, owner);
             }
 
             return power;
@@ -112,8 +117,14 @@ namespace SnapClone.Gameplay.Combat
         {
             if (card?.Definition == null) return;
 
-            card.PerkPowerBonus = GetPerkPowerBonus(card);
             card.CurrentPower = CalculateCardPower(card, zone, boardState, owner);
+        }
+
+        /// <summary>Recalcula el bonus de perks que EffectivePower expone.</summary>
+        public void RefreshPerkBonus(CardInstance card)
+        {
+            if (card?.Definition == null) return;
+            card.PerkPowerBonus = GetPerkPowerBonus(card);
         }
 
         private static BoardSide FindOwner(BoardState boardState, CardInstance card)
@@ -132,22 +143,10 @@ namespace SnapClone.Gameplay.Combat
             return BoardSide.Player;
         }
 
-        private int GetPerkPowerBonus(CardInstance card)
-        {
-            if (_perkRegistry == null || card.AttachedPerks == null) return 0;
-
-            int total = 0;
-            foreach (var perkId in card.AttachedPerks)
-            {
-                var perk = _perkRegistry.Get(perkId);
-                if (perk?.Modifiers != null &&
-                    perk.Modifiers.TryGetValue("power", out int value))
-                {
-                    total += value;
-                }
-            }
-
-            return total;
-        }
+        /// <summary>
+        /// Los perks no son modificadores planos: sus efectos se resuelven como
+        /// habilidades del anfitrion a traves del procesador.
+        /// </summary>
+        private int GetPerkPowerBonus(CardInstance card) => 0;
     }
 }

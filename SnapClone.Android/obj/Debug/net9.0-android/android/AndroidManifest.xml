@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     Una herramienta generó este código.
-    Se generó desde 
+    Se generó desde C:\Users\yandri.reyes.INTEGRITYSOLUTI\source\repos\SnapClone\SnapClone.Android\Properties\AndroidManifest.xml
     Los cambios realizados en este archivo pueden generar un comportamiento incorrecto y se perderán si
     se regenera el contenido.
 -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.integritysolution.snapclone" android:versionCode="1" android:versionName="1.0">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.integritysolution.snapclone" android:versionCode="2" android:versionName="1.1">
   <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="35" />
+  <!-- El back legacy llega a MainActivity.OnBackPressed y se reenvia al juego. -->
   <uses-permission android:name="android.permission.INTERNET" />
-  <application android:name="crc6494337cccf7d1a104.SnapCloneApplication" android:allowBackup="true" android:debuggable="true" android:extractNativeLibs="true" android:icon="@drawable/snapclone_icon" android:label="SnapClone" android:theme="@style/SnapCloneTheme">
+  <application android:name="crc6494337cccf7d1a104.SnapCloneApplication" android:allowBackup="true" android:debuggable="true" android:enableOnBackInvokedCallback="false" android:extractNativeLibs="true" android:icon="@drawable/snapclone_icon" android:label="SnapClone" android:theme="@style/SnapCloneTheme">
     <activity android:name="crc6494337cccf7d1a104.MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|uiMode" android:exported="true" android:icon="@drawable/snapclone_icon" android:label="SnapClone" android:screenOrientation="portrait" android:theme="@style/SnapCloneTheme">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />

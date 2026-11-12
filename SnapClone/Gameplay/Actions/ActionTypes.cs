@@ -10,7 +10,10 @@ namespace SnapClone.Gameplay.Actions
         Destroyed,
         Discarded,
         Drawn,
-        GameStart
+        AddedToHand,
+        GameStart,
+        Empowered,
+        Activated
     }
 
     public enum ActionCause
@@ -34,6 +37,7 @@ namespace SnapClone.Gameplay.Actions
         public CardLocation DestinationLocation { get; set; } = CardLocation.Board;
         public int Turn { get; set; }
         public int PlayOrder { get; set; }
+        public int Amount { get; set; }
         public ActionCause Cause { get; set; } = ActionCause.Effect;
     }
 

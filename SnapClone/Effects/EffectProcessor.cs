@@ -8,6 +8,7 @@ using SnapClone.Effects.Implementations;
 using SnapClone.Gameplay.Actions;
 using SnapClone.Gameplay.Board;
 using SnapClone.Gameplay.Cards;
+using SnapClone.Gameplay.Meta;
 
 namespace SnapClone.Effects
 {
@@ -22,6 +23,7 @@ namespace SnapClone.Effects
 
         private readonly EffectRegistry _effectRegistry;
         private readonly CardRegistry _cardRegistry;
+        private readonly CostResolver _costResolver;
         private readonly Dictionary<string, IEffect> _effects =
             new Dictionary<string, IEffect>();
 
@@ -37,8 +39,14 @@ namespace SnapClone.Effects
         {
             _effectRegistry = effectRegistry;
             _cardRegistry = cardRegistry;
+            _costResolver = new CostResolver(this);
             Random = random;
         }
+
+        /// <summary>Coste efectivo compartido por la UI, la IA y las acciones.</summary>
+        public int GetEffectiveCost(CardInstance card, BoardSide side,
+            BoardState boardState = null) =>
+            _costResolver.Resolve(card, side, boardState ?? BoundBoard);
 
         public void RegisterEffect(string effectId, IEffect effect)
         {
@@ -75,7 +83,168 @@ namespace SnapClone.Effects
                     ApplyOnReveal(boardState, card);
             }
 
+            ResolveRepeatOnReveal(boardState);
+            RevealOrphanedDelayedCards(boardState);
+            ResolveEndOfTurnEffects(boardState);
             ResolvePendingBonuses(boardState);
+        }
+
+        /// <summary>Resuelve Start of Turn antes de la fase de juego.</summary>
+        public int ResolveStartOfTurn(BoardState boardState)
+        {
+            LastActionHitLimit = false;
+            LastActionDispatched = 0;
+
+            if (boardState == null) return 0;
+            if (boardState.StartOfTurnResolvedTurn == boardState.CurrentTurn)
+                return 0;
+
+            boardState.StartOfTurnResolvedTurn = boardState.CurrentTurn;
+
+            // Hot Pursuit y otros modificadores de coste de turno se aplican a
+            // toda instancia para que la mano y la IA vean el coste real.
+            if (boardState.NextTurnCostTaxTurn >= 0 &&
+                boardState.NextTurnCostTaxTurn < boardState.CurrentTurn)
+            {
+                boardState.ClearNextTurnCostTax();
+            }
+
+            bool movedLastTurn = boardState.LastMoveTurn >= 0 &&
+                                 boardState.LastMoveTurn == boardState.CurrentTurn - 1;
+            int costTax = boardState.GetCostTaxForTurn(boardState.CurrentTurn);
+
+            foreach (var card in AllCardsInContainers(boardState))
+            {
+                if (card == null) continue;
+                card.TurnCostDelta = 0;
+            }
+
+            foreach (var card in AllCardsInContainers(boardState))
+            {
+                if (card == null) continue;
+
+                if (movedLastTurn && PerkAbilities.HasEffect(card,
+                        PerkCatalog.EffectHotPursuit))
+                {
+                    card.TurnCostDelta = -3;
+                }
+            }
+
+            foreach (var card in AllCardsInHandOrDeck(boardState))
+            {
+                if (card == null || costTax <= 0) continue;
+
+                card.TurnCostDelta += costTax;
+                card.CostTaxAppliedTurn = boardState.CurrentTurn;
+            }
+
+            ResolvePendingStartOfTurn(boardState);
+
+            int dispatched = 0;
+            foreach (var card in AllCardsInPlay(boardState))
+            {
+                if (card == null || card.AbilitiesDisabled) continue;
+
+                var zone = FindZone(boardState, card);
+                if (zone == null) continue;
+
+                var owner = FindOwner(boardState, card);
+                var context = CreateContext(card, zone, boardState, owner);
+
+                dispatched += ApplyEffects(card, context, EffectTrigger.StartOfTurn, 1);
+            }
+
+            LastActionDispatched = dispatched;
+            return dispatched;
+        }
+
+        private void ResolveEndOfTurnEffects(BoardState boardState)
+        {
+            if (boardState.EndOfTurnResolvedTurn == boardState.CurrentTurn)
+                return;
+
+            boardState.EndOfTurnResolvedTurn = boardState.CurrentTurn;
+
+            int dispatched = 0;
+            foreach (var card in AllCardsInPlay(boardState))
+            {
+                if (card == null || card.AbilitiesDisabled) continue;
+
+                var zone = FindZone(boardState, card);
+                if (zone == null) continue;
+
+                var owner = FindOwner(boardState, card);
+                var context = CreateContext(card, zone, boardState, owner);
+
+                int repeats = 1 + CountRepeatHook(card, typeof(IRepeatEndOfTurn));
+                dispatched += ApplyEffects(card, context,
+                    EffectTrigger.EndOfTurn, repeats);
+            }
+
+            // Algunas cartas de Fin de turno viven en la mano (Black Cat).
+            ApplyHandEndOfTurn(boardState, BoardSide.Player, ref dispatched);
+            ApplyHandEndOfTurn(boardState, BoardSide.AI, ref dispatched);
+
+            LastActionDispatched += dispatched;
+        }
+
+        private void ApplyHandEndOfTurn(BoardState boardState, BoardSide side,
+            ref int dispatched)
+        {
+            var hand = side == BoardSide.Player
+                ? boardState.PlayerHand
+                : boardState.AIHand;
+
+            foreach (var card in hand.ToList())
+            {
+                if (card == null || card.AbilitiesDisabled) continue;
+
+                var context = CreateContext(card, null, boardState, side);
+                dispatched += ApplyEffects(card, context,
+                    EffectTrigger.EndOfTurn, 1);
+            }
+        }
+
+        /// <summary>Overcharge: consume la condicion armada al inicio del turno.</summary>
+        private void ResolvePendingStartOfTurn(BoardState boardState)
+        {
+            foreach (var card in AllCardsInContainers(boardState))
+            {
+                if (card.PendingEffects == null || card.PendingEffects.Count == 0)
+                    continue;
+
+                for (int i = card.PendingEffects.Count - 1; i >= 0; i--)
+                {
+                    var pending = card.PendingEffects[i];
+                    if (pending == null)
+                    {
+                        card.PendingEffects.RemoveAt(i);
+                        continue;
+                    }
+
+                    if (pending.Kind != PendingEffectKind.WinZoneNextTurnEnergy)
+                        continue;
+
+                    if (pending.ArmedTurn >= boardState.CurrentTurn)
+                        continue;
+
+                    var side = FindOwner(boardState, card);
+                    var zone = pending.ZoneIndex >= 0 &&
+                               pending.ZoneIndex < boardState.Zones.Count
+                        ? boardState.Zones[pending.ZoneIndex]
+                        : FindZone(boardState, card);
+
+                    bool winning = zone != null &&
+                        (side == BoardSide.Player
+                            ? zone.GetPlayerPower() > zone.GetAIPower()
+                            : zone.GetAIPower() > zone.GetPlayerPower());
+
+                    if (winning)
+                        Actions?.AddEnergy(side, Math.Max(1, pending.Amount));
+
+                    card.PendingEffects.RemoveAt(i);
+                }
+            }
         }
 
         public int Dispatch(ActionEvent actionEvent) =>
@@ -104,24 +273,26 @@ namespace SnapClone.Effects
                 dispatched++;
 
                 var reactors = BuildReactorOrder(boardState, current);
+                bool empower = current.Kind == ActionEventKind.Empowered;
+
                 foreach (var card in reactors)
                 {
-                    if (card?.Definition?.EffectIds == null) continue;
-                    if (card.AbilitiesDisabled) continue;
+                    if (card == null || card.AbilitiesDisabled) continue;
 
                     var zone = FindZone(boardState, card);
                     var owner = FindOwner(boardState, card);
                     var context = CreateContext(card, zone, boardState, owner, current,
                         next => queue.Enqueue(next));
 
-                    foreach (var effectId in card.Definition.EffectIds)
+                    // Reinforce es una reaccion por anfitrion, no una regla de lado.
+                    if (empower)
                     {
-                        var effect = GetEffect(effectId);
-                        if (effect == null || effect.Trigger != TriggerFor(current.Kind))
-                            continue;
-
-                        effect.Apply(context);
+                        if (!ReferenceEquals(current.SourceCard, card)) continue;
+                        ApplyEmpoweredReactors(card, context, current.Amount);
+                        continue;
                     }
+
+                    ApplyEffects(card, context, TriggerFor(current.Kind), 1);
                 }
             }
 
@@ -143,21 +314,294 @@ namespace SnapClone.Effects
             var zone = FindZone(boardState, card);
             if (zone == null) return;
 
-            card.HasRevealed = true;
+            if (HasInvisibleWoman(zone) &&
+                !PerkAbilities.HasEffect(card, "effect_invisible_woman"))
+            {
+                card.DelayedReveal = true;
+                return;
+            }
 
-            if (card.Definition?.EffectIds == null || card.AbilitiesDisabled) return;
+            card.HasRevealed = true;
+            card.RevealedTurn = boardState.CurrentTurn;
+            ApplyRevealEffects(boardState, card, zone);
+        }
+
+        private bool HasInvisibleWoman(ZoneInstance zone)
+        {
+            if (zone == null) return false;
+
+            foreach (var card in zone.PlayerCards.Concat(zone.AICards))
+            {
+                if (card == null || card.AbilitiesDisabled) continue;
+                if (PerkAbilities.HasEffect(card, "effect_invisible_woman"))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private void RevealOrphanedDelayedCards(BoardState boardState)
+        {
+            foreach (var card in AllCardsInPlay(boardState).ToList())
+            {
+                if (card == null || !card.DelayedReveal) continue;
+
+                var zone = FindZone(boardState, card);
+                if (zone == null || HasInvisibleWoman(zone)) continue;
+
+                card.DelayedReveal = false;
+                if (card.HasRevealed) continue;
+
+                card.HasRevealed = true;
+                card.RevealedTurn = boardState.CurrentTurn;
+                ApplyRevealEffects(boardState, card, zone);
+            }
+        }
+
+        /// <summary>Resuelve el fin de partida: revelados diferidos y EndOfGame.</summary>
+        public int ResolveEndOfGame(BoardState boardState)
+        {
+            if (boardState == null) return 0;
+
+            foreach (var card in AllCardsInPlay(boardState).ToList())
+            {
+                if (card == null || !card.DelayedReveal) continue;
+
+                var zone = FindZone(boardState, card);
+                if (zone == null) continue;
+
+                card.DelayedReveal = false;
+                if (!card.HasRevealed)
+                {
+                    card.HasRevealed = true;
+                    card.RevealedTurn = boardState.CurrentTurn;
+                    ApplyRevealEffects(boardState, card, zone);
+                }
+            }
+
+            int dispatched = 0;
+            foreach (var card in AllCardsInPlay(boardState).ToList())
+            {
+                if (card == null || card.AbilitiesDisabled) continue;
+
+                var zone = FindZone(boardState, card);
+                if (zone == null) continue;
+
+                var owner = FindOwner(boardState, card);
+                var context = CreateContext(card, zone, boardState, owner);
+                dispatched += ApplyEffects(card, context,
+                    EffectTrigger.EndOfGame, 1);
+            }
+
+            return dispatched;
+        }
+
+        /// <summary>Revela una carta que entro al tablero por un efecto, como Jubilee.</summary>
+        public void RevealAddedCard(BoardState boardState, CardInstance card)
+        {
+            if (card == null || card.HasRevealed) return;
+
+            var zone = FindZone(boardState, card);
+            if (zone == null) return;
+
+            card.HasRevealed = true;
+            card.RevealedTurn = boardState.CurrentTurn;
+            ApplyRevealEffects(boardState, card, zone);
+        }
+
+        private void ApplyRevealEffects(BoardState boardState, CardInstance card,
+            ZoneInstance zone)
+        {
+            if (card.AbilitiesDisabled) return;
             if (HasActiveCosmo(zone)) return;
+
+            // Silence apaga el texto impreso desde su propio reveal; los perks
+            // adjuntos siguen resolviendose.
+            if (PerkAbilities.HasEffect(card, PerkCatalog.EffectSilence))
+                card.PrintedAbilitiesDisabled = true;
 
             var owner = FindOwner(boardState, card);
             var context = CreateContext(card, zone, boardState, owner);
 
-            foreach (var effectId in card.Definition.EffectIds)
+            int repeats = 1 + CountRepeatHook(card, typeof(IRepeatOnReveal));
+            ApplyEffects(card, context, EffectTrigger.OnReveal, repeats);
+
+            if (card.PendingDoublePower)
+            {
+                card.PendingDoublePower = false;
+                card.DoublePower();
+            }
+        }
+
+        /// <summary>
+        /// Odin: tras la secuencia normal de reveals, repite una vez los OnReveal
+        /// aliados ya revelados en su zona. No repite a otros repetidores ni a si
+        /// mismo, y respeta Cosmo y las habilidades desactivadas.
+        /// </summary>
+        private void ResolveRepeatOnReveal(BoardState boardState)
+        {
+            if (boardState == null) return;
+
+            var repeaters = new List<CardInstance>();
+            foreach (var card in AllCardsInPlay(boardState))
+            {
+                if (card == null || !card.HasRevealed || card.AbilitiesDisabled)
+                    continue;
+                if (!HasRepeatZoneHook(card)) continue;
+                if (card.RevealedTurn != boardState.CurrentTurn &&
+                    !IsPersistentRepeatHook(card))
+                    continue;
+                repeaters.Add(card);
+            }
+
+            foreach (var repeater in repeaters)
+            {
+                var zone = FindZone(boardState, repeater);
+                if (zone == null || HasActiveCosmo(zone)) continue;
+
+                var owner = FindOwner(boardState, repeater);
+                var targets = new List<CardInstance>();
+
+                foreach (var card in zone.CardsFor(owner))
+                {
+                    if (ReferenceEquals(card, repeater)) continue;
+                    if (card == null || !card.HasRevealed || card.AbilitiesDisabled)
+                        continue;
+                    if (card.RevealedTurn != boardState.CurrentTurn)
+                        continue;
+                    if (HasRepeatZoneHook(card)) continue;
+
+                    targets.Add(card);
+                }
+
+                foreach (var target in targets)
+                {
+                    var context = CreateContext(target, zone, boardState, owner);
+                    ApplyEffects(target, context, EffectTrigger.OnReveal, 1);
+                }
+            }
+        }
+
+        private bool HasRepeatZoneHook(CardInstance card)
+        {
+            if (card == null) return false;
+
+            foreach (var effectId in PerkAbilities.EffectiveEffectIds(card,
+                !card.PrintedAbilitiesDisabled))
+            {
+                if (GetEffect(effectId) is IRepeatOnRevealAtLocation)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private bool IsPersistentRepeatHook(CardInstance card)
+        {
+            if (card == null) return false;
+
+            foreach (var effectId in PerkAbilities.EffectiveEffectIds(card,
+                !card.PrintedAbilitiesDisabled))
             {
                 var effect = GetEffect(effectId);
-                if (effect == null || effect.Trigger != EffectTrigger.OnReveal) continue;
-
-                effect.Apply(context);
+                if (effect is IRepeatOnRevealAtLocation &&
+                    effect.Trigger == EffectTrigger.Ongoing)
+                    return true;
             }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Aplica los efectos efectivos de una carta para un disparador. Cada
+        /// copia de un perk aporta su efecto una vez; la repeticion meta se
+        /// limita a las copias adjuntas y nunca se aplica sobre si misma.
+        /// </summary>
+        private int ApplyEffects(CardInstance card, EffectContext context,
+            EffectTrigger trigger, int repeats)
+        {
+            if (card == null || context == null) return 0;
+            if (trigger == EffectTrigger.Passive) return 0;
+
+            int applied = 0;
+            var effectIds = PerkAbilities.EffectiveEffectIds(card,
+                !card.PrintedAbilitiesDisabled);
+
+            for (int repeat = 0; repeat < repeats; repeat++)
+            {
+                foreach (string effectId in effectIds)
+                {
+                    var effect = GetEffect(effectId);
+                    if (effect == null || effect.Trigger != trigger) continue;
+
+                    // Las meta-habilidades no se repiten a si mismas.
+                    if (repeat > 0 && IsRepeatHook(effect)) continue;
+
+                    effect.Apply(context);
+                    applied++;
+                }
+            }
+
+            return applied;
+        }
+
+        private static bool IsRepeatHook(IEffect effect) =>
+            effect is IRepeatOngoing || effect is IRepeatOnReveal ||
+            effect is IRepeatEndOfTurn;
+
+        private int CountRepeatHook(CardInstance card, Type hookType)
+        {
+            if (card?.AttachedPerks == null) return 0;
+
+            int count = 0;
+            foreach (string perkId in card.AttachedPerks)
+            {
+                foreach (string effectId in PerkCatalog.EffectIdsFor(perkId))
+                {
+                    var effect = GetEffect(effectId);
+                    if (effect != null && hookType.IsInstanceOfType(effect))
+                        count++;
+                }
+            }
+
+            return count;
+        }
+
+        private int ApplyEmpoweredReactors(CardInstance card, EffectContext context,
+            int amount)
+        {
+            if (card == null || amount <= 0) return 0;
+
+            int applied = 0;
+            var effectIds = PerkAbilities.EffectiveEffectIds(card,
+                !card.PrintedAbilitiesDisabled);
+
+            foreach (string effectId in effectIds)
+            {
+                var effect = GetEffect(effectId);
+                if (effect is IEmpoweredReactor reactor)
+                {
+                    reactor.OnEmpowered(context, amount);
+                    applied++;
+                }
+            }
+
+            return applied;
+        }
+
+        /// <summary>
+        /// Dispara Empowered sobre la carta potenciada. Reinforce agrega su +1
+        /// por copia sin volver a emitir el evento.
+        /// </summary>
+        public int NotifyEmpowered(CardInstance card, int amount)
+        {
+            if (BoundBoard == null || card == null || amount <= 0) return 0;
+            if (card.AbilitiesDisabled) return 0;
+
+            var zone = FindZone(BoundBoard, card);
+            var owner = FindOwner(BoundBoard, card);
+            var context = CreateContext(card, zone, BoundBoard, owner);
+            return ApplyEmpoweredReactors(card, context, amount);
         }
 
         private bool HasActiveCosmo(ZoneInstance zone)
@@ -167,9 +611,9 @@ namespace SnapClone.Effects
             foreach (var card in zone.PlayerCards.Concat(zone.AICards))
             {
                 if (!card.HasRevealed || card.AbilitiesDisabled) continue;
-                if (card.Definition?.EffectIds == null) continue;
 
-                foreach (var effectId in card.Definition.EffectIds)
+                foreach (var effectId in PerkAbilities.EffectiveEffectIds(card,
+                    !card.PrintedAbilitiesDisabled))
                 {
                     if (GetEffect(effectId) is SuppressOnRevealEffect)
                         return true;
@@ -186,10 +630,10 @@ namespace SnapClone.Effects
 
             foreach (var other in zone.PlayerCards.Concat(zone.AICards))
             {
-                if (other.AbilitiesDisabled || other.Definition?.EffectIds == null)
-                    continue;
+                if (other.AbilitiesDisabled) continue;
 
-                foreach (var effectId in other.Definition.EffectIds)
+                foreach (var effectId in PerkAbilities.EffectiveEffectIds(other,
+                    !other.PrintedAbilitiesDisabled))
                 {
                     if (GetEffect(effectId) is DestroyProtectionEffect)
                         return true;
@@ -199,20 +643,21 @@ namespace SnapClone.Effects
             return false;
         }
 
-        public bool IsZonePlayLocked(ZoneInstance zone) => HasZoneLock(zone);
+        public bool IsZonePlayLocked(ZoneInstance zone) =>
+            HasPlayZoneLock(zone) || HasFullZoneLock(zone);
 
-        public bool IsZoneRemovalLocked(ZoneInstance zone) => HasZoneLock(zone);
+        public bool IsZoneRemovalLocked(ZoneInstance zone) => HasFullZoneLock(zone);
 
-        private bool HasZoneLock(ZoneInstance zone)
+        private bool HasFullZoneLock(ZoneInstance zone)
         {
             if (zone == null) return false;
 
             foreach (var card in zone.PlayerCards.Concat(zone.AICards))
             {
-                if (card.AbilitiesDisabled || card.Definition?.EffectIds == null)
-                    continue;
+                if (card.AbilitiesDisabled) continue;
 
-                foreach (var effectId in card.Definition.EffectIds)
+                foreach (var effectId in PerkAbilities.EffectiveEffectIds(card,
+                    !card.PrintedAbilitiesDisabled))
                 {
                     if (GetEffect(effectId) is ZoneLockEffect)
                         return true;
@@ -222,11 +667,177 @@ namespace SnapClone.Effects
             return false;
         }
 
+        private bool HasPlayZoneLock(ZoneInstance zone)
+        {
+            if (zone == null) return false;
+
+            foreach (var card in zone.PlayerCards.Concat(zone.AICards))
+            {
+                if (card.AbilitiesDisabled) continue;
+
+                foreach (var effectId in PerkAbilities.EffectiveEffectIds(card,
+                    !card.PrintedAbilitiesDisabled))
+                {
+                    if (GetEffect(effectId) is PlayLockEffect)
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Resuelve los efectos Activate de una carta.</summary>
+        public int ResolveActivate(BoardState boardState, CardInstance card)
+        {
+            if (boardState == null || card == null || card.AbilitiesDisabled)
+                return 0;
+
+            var zone = FindZone(boardState, card);
+            if (zone == null) return 0;
+
+            var owner = FindOwner(boardState, card);
+            var context = CreateContext(card, zone, boardState, owner);
+            return ApplyEffects(card, context, EffectTrigger.Activate, 1);
+        }
+
+        /// <summary>True si la carta tiene una habilidad Activar sin usar.</summary>
+        public bool CanActivate(CardInstance card)
+        {
+            if (card == null || !card.IsInPlay || card.AbilitiesDisabled ||
+                card.ActivatedThisCombat)
+                return false;
+
+            foreach (var effectId in PerkAbilities.EffectiveEffectIds(card,
+                !card.PrintedAbilitiesDisabled))
+            {
+                var effect = GetEffect(effectId);
+                if (effect != null && effect.Trigger == EffectTrigger.Activate)
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>Consulta unica de legalidad de una carta en mano.</summary>
+        public bool CanPlayCard(CardInstance card, BoardState boardState,
+            BoardSide side) =>
+            CanPlayCard(card, boardState, side, null);
+
+        /// <summary>Consulta de legalidad con la zona de destino incluida.</summary>
+        public bool CanPlayCard(CardInstance card, BoardState boardState,
+            BoardSide side, ZoneInstance targetZone)
+        {
+            if (card == null || boardState == null) return false;
+
+            var context = CreateContext(card, targetZone, boardState, side);
+            context.TargetZone = targetZone;
+
+            foreach (var effectId in PerkAbilities.EffectiveEffectIds(card,
+                !card.PrintedAbilitiesDisabled))
+            {
+                var effect = GetEffect(effectId);
+                if (effect is IPlayRestriction restriction &&
+                    !restriction.IsPlayable(context))
+                    return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>True cuando un efecto de lado limita a una carta por turno.</summary>
+        public bool IsSideLimitedToOneCard(BoardState boardState, BoardSide side) =>
+            HasSideEffect(boardState, side, "effect_electro");
+
+        /// <summary>Goose: nadie juega cartas de coste 4 o mas en su zona.</summary>
+        public bool IsBlockedByGoose(ZoneInstance zone, CardInstance card,
+            BoardSide side)
+        {
+            if (zone == null || card == null) return false;
+
+            foreach (var other in zone.PlayerCards.Concat(zone.AICards))
+            {
+                if (other == null || other.AbilitiesDisabled) continue;
+                if (!PerkAbilities.HasEffect(other, "effect_goose")) continue;
+
+                int cost = GetEffectiveCost(card, side, zone.Board);
+                return cost >= 4;
+            }
+
+            return false;
+        }
+
+        /// <summary>Zona forzada por Jean Grey para la primera carta del turno.</summary>
+        public int GetForcedZone(BoardState boardState, BoardSide side)
+        {
+            if (boardState == null) return -1;
+            if (boardState.GetPlayedCount(side, boardState.CurrentTurn) > 0)
+                return -1;
+
+            foreach (var zone in boardState.Zones)
+            {
+                foreach (var card in zone.CardsFor(side))
+                {
+                    if (card == null || card.AbilitiesDisabled) continue;
+                    if (!PerkAbilities.HasEffect(card, "effect_jean_grey")) continue;
+                    if (zone.CanAdd(side)) return zone.ZoneIndex;
+                }
+            }
+
+            return -1;
+        }
+
+        public bool HasSideEffect(BoardState boardState, BoardSide side,
+            string effectId)
+        {
+            if (boardState == null || string.IsNullOrWhiteSpace(effectId))
+                return false;
+
+            foreach (var zone in boardState.Zones)
+            {
+                foreach (var card in zone.CardsFor(side))
+                {
+                    if (card == null || card.AbilitiesDisabled) continue;
+                    if (PerkAbilities.HasEffect(card, effectId)) return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Permiso de movimiento impreso de una carta.</summary>
+        public MovePermission GetMovePermission(CardInstance card)
+        {
+            if (card == null || card.AbilitiesDisabled)
+                return MovePermission.None;
+
+            MovePermission result = MovePermission.None;
+
+            foreach (var effectId in PerkAbilities.EffectiveEffectIds(card,
+                !card.PrintedAbilitiesDisabled))
+            {
+                var effect = GetEffect(effectId);
+                if (effect is IMovePermission permission)
+                {
+                    if (permission.Frequency == MovePermission.OncePerTurn)
+                        return MovePermission.OncePerTurn;
+
+                    result = permission.Frequency;
+                }
+                else if (effect is IPlayerMovePermission)
+                {
+                    result = MovePermission.OncePerCombat;
+                }
+            }
+
+            return result;
+        }
+
         public bool HasOngoing(CardInstance card)
         {
-            if (card?.Definition?.EffectIds == null) return false;
+            if (card == null) return false;
 
-            foreach (var effectId in card.Definition.EffectIds)
+            foreach (var effectId in PerkAbilities.EffectiveEffectIds(card,
+                !card.PrintedAbilitiesDisabled))
             {
                 var effect = GetEffect(effectId);
                 if (effect != null && effect.Trigger == EffectTrigger.Ongoing)
@@ -234,6 +845,112 @@ namespace SnapClone.Effects
             }
 
             return false;
+        }
+
+        public bool HasTrigger(CardInstance card, EffectTrigger trigger)
+        {
+            if (card == null) return false;
+
+            foreach (var effectId in PerkAbilities.EffectiveEffectIds(card,
+                !card.PrintedAbilitiesDisabled))
+            {
+                var effect = GetEffect(effectId);
+                if (effect != null && effect.Trigger == trigger)
+                    return true;
+            }
+
+            return false;
+        }
+
+        public bool IsDestroyImmune(CardInstance card) =>
+            card != null && card.IsInPlay && !card.AbilitiesDisabled &&
+            HasMarker<IDestroyImmune>(card);
+
+        public bool NegatesPowerReduction(CardInstance card)
+        {
+            if (card == null) return false;
+
+            if (card.IsInPlay && !card.AbilitiesDisabled &&
+                HasMarker<IPowerReductionImmune>(card))
+                return true;
+
+            if (!card.IsInPlay || BoundBoard == null) return false;
+
+            var owner = FindOwner(BoundBoard, card);
+            foreach (var zone in BoundBoard.Zones)
+            {
+                foreach (var ally in zone.CardsFor(owner))
+                {
+                    if (ally == null || ally.AbilitiesDisabled) continue;
+                    if (PerkAbilities.EffectiveEffectIds(ally,
+                        !ally.PrintedAbilitiesDisabled).Contains("effect_luke_cage"))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool AllowsAnyZone(CardInstance card) =>
+            !card.AbilitiesDisabled && HasMarker<IPlayAnywhere>(card);
+
+        public bool HasPlayerMovePermission(CardInstance card) =>
+            !card.AbilitiesDisabled && HasMarker<IPlayerMovePermission>(card);
+
+        private bool HasMarker<T>(CardInstance card) where T : class
+        {
+            if (card == null) return false;
+
+            foreach (var effectId in PerkAbilities.EffectiveEffectIds(card,
+                !card.PrintedAbilitiesDisabled))
+            {
+                if (GetEffect(effectId) is T)
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>Reduccion de coste de las habilidades del anfitrion.</summary>
+        public int GetCostReduction(CardInstance card, BoardState boardState,
+            BoardSide owner)
+        {
+            if (card == null || boardState == null || card.AbilitiesDisabled)
+                return 0;
+
+            var zone = FindZone(boardState, card);
+            var context = CreateContext(card, zone, boardState, owner);
+
+            int total = 0;
+            foreach (var effectId in PerkAbilities.EffectiveEffectIds(card,
+                !card.PrintedAbilitiesDisabled))
+            {
+                var effect = GetEffect(effectId);
+                if (effect is ICardCostModifier modifier)
+                    total += modifier.GetCostReduction(context);
+            }
+
+            return total;
+        }
+
+        /// <summary>Multiplicador final de Poder (Apex).</summary>
+        public int GetPowerMultiplier(CardInstance card, ZoneInstance zone,
+            BoardState boardState, BoardSide owner)
+        {
+            if (card == null || zone == null || card.AbilitiesDisabled) return 1;
+
+            var context = CreateContext(card, zone, boardState, owner);
+            int multiplier = 1;
+
+            foreach (var effectId in PerkAbilities.EffectiveEffectIds(card,
+                !card.PrintedAbilitiesDisabled))
+            {
+                var effect = GetEffect(effectId);
+                if (effect is IPowerDoubler doubler && doubler.ShouldDouble(context))
+                    multiplier *= 2;
+            }
+
+            return multiplier;
         }
 
         private void ResolvePendingBonuses(BoardState boardState)
@@ -265,13 +982,22 @@ namespace SnapClone.Effects
                     if (pending.ArmedTurn >= boardState.CurrentTurn)
                         continue;
 
-                    bool met = pending.Kind == PendingEffectKind.AllyPlayedInZoneNextTurn &&
-                        pending.ArmedTurn == boardState.CurrentTurn - 1 &&
-                        WasAllyPlayedInZone(boardState, side, boardState.CurrentTurn,
-                            pending.ZoneIndex);
+                    bool playedInZone = WasAllyPlayedInZone(boardState, side,
+                        boardState.CurrentTurn, pending.ZoneIndex);
+
+                    bool met = pending.ArmedTurn == boardState.CurrentTurn - 1 &&
+                        ((pending.Kind == PendingEffectKind.AllyPlayedInZoneNextTurn &&
+                          playedInZone) ||
+                         (pending.Kind == PendingEffectKind.AllyNotPlayedInZoneNextTurn &&
+                          !playedInZone));
 
                     if (met)
-                        card.BonusPower += pending.Amount;
+                    {
+                        if (Actions != null)
+                            Actions.AddBonusPower(card, pending.Amount);
+                        else
+                            card.BonusPower += pending.Amount;
+                    }
 
                     card.PendingEffects.RemoveAt(i);
                 }
@@ -314,28 +1040,33 @@ namespace SnapClone.Effects
         public int GetCardPowerBonus(CardInstance card, ZoneInstance zone,
             BoardState boardState, BoardSide owner)
         {
-            if (card?.Definition?.EffectIds == null || zone == null) return 0;
+            if (card == null || zone == null) return 0;
 
             int total = 0;
+            bool immuneToReduction = NegatesPowerReduction(card);
 
             if (!card.AbilitiesDisabled)
             {
                 int selfRepeat = GetRepeatCount(card, owner, zone, boardState);
                 var context = CreateContext(card, zone, boardState, owner);
 
-                foreach (var effectId in card.Definition.EffectIds)
+                foreach (var effectId in PerkAbilities.EffectiveEffectIds(card,
+                    !card.PrintedAbilitiesDisabled))
                 {
                     var effect = GetEffect(effectId);
                     if (effect == null || effect.Trigger != EffectTrigger.Ongoing)
                         continue;
                     if (effect is ICardPowerModifier modifier)
-                        total += modifier.GetPowerBonus(context) * selfRepeat;
+                    {
+                        int bonus = modifier.GetPowerBonus(context) * selfRepeat;
+                        if (immuneToReduction && bonus < 0) continue;
+                        total += bonus;
+                    }
                 }
 
                 foreach (var source in AllCardsInPlay(boardState))
                 {
-                    if (source.AbilitiesDisabled || source.Definition?.EffectIds == null)
-                        continue;
+                    if (source.AbilitiesDisabled) continue;
 
                     var sourceZone = FindZone(boardState, source);
                     if (sourceZone == null) continue;
@@ -344,11 +1075,17 @@ namespace SnapClone.Effects
                     int repeat = GetRepeatCount(source, sourceSide, sourceZone, boardState);
                     var sourceContext = CreateContext(source, sourceZone, boardState, sourceSide);
 
-                    foreach (var effectId in source.Definition.EffectIds)
+                    foreach (var effectId in PerkAbilities.EffectiveEffectIds(source,
+                        !source.PrintedAbilitiesDisabled))
                     {
                         var effect = GetEffect(effectId);
                         if (effect is ICardAura aura)
-                            total += aura.GetBonusForCard(sourceContext, card, zone, owner) * repeat;
+                        {
+                            int bonus = aura.GetBonusForCard(sourceContext, card,
+                                zone, owner) * repeat;
+                            if (immuneToReduction && bonus < 0) continue;
+                            total += bonus;
+                        }
                     }
                 }
             }
@@ -360,6 +1097,10 @@ namespace SnapClone.Effects
             BoardSide owner)
         {
             if (zone?.Definition?.EffectIds == null) return 0;
+            if (zone.Board != null &&
+                zone.Board.AreZoneEffectsSuppressed(
+                    zone.Board.CurrentTurn))
+                return 0;
 
             int total = 0;
             foreach (var effectId in zone.Definition.EffectIds)
@@ -369,6 +1110,7 @@ namespace SnapClone.Effects
                     total += modifier.GetBonusForCard(zone, card, owner);
             }
 
+            if (total < 0 && NegatesPowerReduction(card)) return 0;
             return total;
         }
 
@@ -380,13 +1122,14 @@ namespace SnapClone.Effects
             int multiplier = 1;
             foreach (var card in zone.CardsFor(owner))
             {
-                if (card?.Definition?.EffectIds == null || card.AbilitiesDisabled)
+                if (card == null || card.AbilitiesDisabled)
                     continue;
 
                 int repeat = GetRepeatCount(card, owner, zone, boardState);
                 var context = CreateContext(card, zone, boardState, owner);
 
-                foreach (var effectId in card.Definition.EffectIds)
+                foreach (var effectId in PerkAbilities.EffectiveEffectIds(card,
+                    !card.PrintedAbilitiesDisabled))
                 {
                     var effect = GetEffect(effectId);
                     if (effect == null || effect.Trigger != EffectTrigger.Ongoing)
@@ -411,8 +1154,7 @@ namespace SnapClone.Effects
             int total = 0;
             foreach (var source in AllCardsInPlay(boardState))
             {
-                if (source.AbilitiesDisabled || source.Definition?.EffectIds == null)
-                    continue;
+                if (source.AbilitiesDisabled) continue;
 
                 var sourceZone = FindZone(boardState, source);
                 if (sourceZone == null) continue;
@@ -421,7 +1163,8 @@ namespace SnapClone.Effects
                 int repeat = GetRepeatCount(source, sourceSide, sourceZone, boardState);
                 var sourceContext = CreateContext(source, sourceZone, boardState, sourceSide);
 
-                foreach (var effectId in source.Definition.EffectIds)
+                foreach (var effectId in PerkAbilities.EffectiveEffectIds(source,
+                    !source.PrintedAbilitiesDisabled))
                 {
                     var effect = GetEffect(effectId);
                     if (effect is IZonePowerAddition addition)
@@ -440,10 +1183,10 @@ namespace SnapClone.Effects
             int onslaughts = 0;
             foreach (var card in sourceZone.CardsFor(sourceSide))
             {
-                if (card.AbilitiesDisabled || card.Definition?.EffectIds == null)
-                    continue;
+                if (card.AbilitiesDisabled) continue;
 
-                foreach (var effectId in card.Definition.EffectIds)
+                foreach (var effectId in PerkAbilities.EffectiveEffectIds(card,
+                    !card.PrintedAbilitiesDisabled))
                 {
                     if (GetEffect(effectId) is OngoingRepeatEffect)
                     {
@@ -453,9 +1196,12 @@ namespace SnapClone.Effects
                 }
             }
 
-            if (onslaughts <= 0) return 1;
-            if (onslaughts > 2) onslaughts = 2;
-            return 1 << onslaughts;
+            int baseRepeat = onslaughts <= 0
+                ? 1
+                : 1 << System.Math.Min(onslaughts, 2);
+
+            // Amplify suma una repeticion por copia; nunca se repite a si mismo.
+            return baseRepeat + CountRepeatHook(source, typeof(IRepeatOngoing));
         }
 
         private static List<CardInstance> AllCardsInPlay(BoardState boardState)
@@ -467,6 +1213,41 @@ namespace SnapClone.Effects
             {
                 cards.AddRange(zone.PlayerCards);
                 cards.AddRange(zone.AICards);
+            }
+
+            return cards;
+        }
+
+        /// <summary>Instancias en mano y mazo; el impuesto de coste solo aplica aqui.</summary>
+        private static List<CardInstance> AllCardsInHandOrDeck(BoardState boardState)
+        {
+            var cards = new List<CardInstance>();
+            if (boardState == null) return cards;
+
+            cards.AddRange(boardState.PlayerHand);
+            cards.AddRange(boardState.AIHand);
+            cards.AddRange(boardState.PlayerDeck);
+            cards.AddRange(boardState.AIDeck);
+            return cards;
+        }
+
+        /// <summary>Todas las instancias del tablero, manos, mazos y pilas.</summary>
+        private static List<CardInstance> AllCardsInContainers(BoardState boardState)
+        {
+            var cards = new List<CardInstance>();
+            if (boardState == null) return cards;
+
+            cards.AddRange(AllCardsInPlay(boardState));
+            cards.AddRange(boardState.PlayerHand);
+            cards.AddRange(boardState.AIHand);
+            cards.AddRange(boardState.PlayerDeck);
+            cards.AddRange(boardState.AIDeck);
+
+            foreach (PileKind kind in new[]
+                     { PileKind.Discard, PileKind.Destroyed, PileKind.Banished })
+            {
+                cards.AddRange(boardState.PlayerPiles.Get(kind));
+                cards.AddRange(boardState.AIPiles.Get(kind));
             }
 
             return cards;
@@ -530,7 +1311,10 @@ namespace SnapClone.Effects
                 case ActionEventKind.Destroyed: return EffectTrigger.AfterDestroyed;
                 case ActionEventKind.Discarded: return EffectTrigger.AfterDiscarded;
                 case ActionEventKind.Drawn: return EffectTrigger.AfterDrawn;
+                case ActionEventKind.AddedToHand: return EffectTrigger.AfterAddedToHand;
                 case ActionEventKind.GameStart: return EffectTrigger.GameStart;
+                case ActionEventKind.Empowered: return EffectTrigger.Empowered;
+                case ActionEventKind.Activated: return EffectTrigger.Activate;
                 default: return EffectTrigger.OnReveal;
             }
         }

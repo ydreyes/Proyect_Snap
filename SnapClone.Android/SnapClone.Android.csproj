@@ -4,23 +4,29 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>SnapClone.Android</RootNamespace>
     <ApplicationId>com.integritysolution.snapclone</ApplicationId>
-    <ApplicationVersion>1</ApplicationVersion>
-    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>2</ApplicationVersion>
+    <ApplicationDisplayVersion>1.1</ApplicationDisplayVersion>
     <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
-    <RuntimeIdentifiers>android-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifiers>android-arm64;android-arm</RuntimeIdentifiers>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
     <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
     <Nullable>disable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\SnapClone\**\*.cs"
-             Exclude="..\SnapClone\Program.cs;..\SnapClone\bin\**;..\SnapClone\obj\**"
-             LinkBase="Game" />
+    <Compile Include="..\SnapClone\**\*.cs" Exclude="..\SnapClone\Program.cs;..\SnapClone\bin\**;..\SnapClone\obj\**" LinkBase="Game" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="FontStashSharp.MonoGame" Version="1.6.2" />
     <PackageReference Include="MonoGame.Framework.Android" Version="3.8.6" />
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.6" />
   </ItemGroup>
   <ItemGroup>
     <MonoGameContentReference Include="..\SnapClone\Content\Content.mgcb" Link="Content\Content.mgcb" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\SnapClone\Content\Fonts\*.ttf" Link="Content\Fonts\%(Filename)%(Extension)"
+                      LogicalName="SnapClone.Content.Fonts.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\SnapClone\Content\Fonts\*.txt" Link="Content\Fonts\%(Filename)%(Extension)"
+                      LogicalName="SnapClone.Content.Fonts.%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>
