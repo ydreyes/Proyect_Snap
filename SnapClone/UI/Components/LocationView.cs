@@ -25,6 +25,23 @@ namespace SnapClone.UI.Components
         public Rectangle[] OpponentSlots { get; set; } = new Rectangle[4];
         public Rectangle[] PlayerSlots { get; set; } = new Rectangle[4];
 
+        /// <summary>Variante de arte derivada del id de la locacion.</summary>
+        public int ArtVariant { get; set; }
+
+        public static int ArtVariantFor(string zoneId)
+        {
+            if (string.IsNullOrEmpty(zoneId)) return 0;
+
+            unchecked
+            {
+                int hash = 17;
+                foreach (char c in zoneId)
+                    hash = hash * 31 + c;
+
+                return (hash & 0x7FFFFFFF) % 4;
+            }
+        }
+
         public const int SlotsPerSide = 4;
         public const int SlotsPerRow = 2;
 
@@ -75,13 +92,13 @@ namespace SnapClone.UI.Components
                 (IsRevealed ? ArtTop : PanelFill) * 0.45f,
                 (IsRevealed ? ArtBottom : PanelFill) * 0.9f, 14);
             if (IsRevealed)
-                DrawLocationArt(shapes, inner, Index, 0.55f);
+                DrawLocationArt(shapes, inner, ArtVariant, 0.55f);
 
             // Cabecera con el nombre (u oculta)
             int headerHeight = (int)(inner.Height * 0.26f);
             var header = new Rectangle(inner.X, inner.Y, inner.Width, headerHeight);
             fonts.DrawTextCenteredFit(spriteBatch, IsRevealed ? Name : "???", header,
-                new Color(238, 224, 188), 0.52f, 0.28f);
+                new Color(238, 224, 188), 0.72f, 0.38f);
 
             // Totales: dos hexagonos grandes en la banda inferior
             float radius = System.Math.Max(9f, System.Math.Min(inner.Width * 0.17f, inner.Height * 0.19f));
@@ -100,12 +117,12 @@ namespace SnapClone.UI.Components
             if (IsRevealed && effectArea.Height > 8 && !string.IsNullOrEmpty(EffectText))
             {
                 fonts.DrawTextWrapped(spriteBatch, EffectText, effectArea,
-                    new Color(206, 214, 230), 0.34f);
+                    new Color(206, 214, 230), 0.48f);
             }
             else if (!IsRevealed && effectArea.Height > 8)
             {
                 fonts.DrawTextCentered(spriteBatch, "? ? ?", effectArea,
-                    new Color(120, 130, 150), 0.42f);
+                    new Color(120, 130, 150), 0.58f);
             }
 
             if (statusHeight > 0)
@@ -113,19 +130,19 @@ namespace SnapClone.UI.Components
                 var statusRect = new Rectangle(inner.X, effectArea.Bottom + 1,
                     inner.Width, statusHeight);
                 fonts.DrawTextCenteredFit(spriteBatch, StatusText, statusRect,
-                    new Color(255, 200, 120), 0.34f, 0.22f);
+                    new Color(255, 200, 120), 0.48f, 0.30f);
             }
 
             float badgeY = totalsTop + radius;
             var playerBadge = new Vector2(inner.X + inner.Width * 0.26f, badgeY);
             shapes.DrawHexagonFramed(playerBadge, radius,
                 new Color(44, 96, 196), new Color(168, 204, 255), 2f, false);
-            fonts.DrawTextCentered(spriteBatch, PlayerPower.ToString(), playerBadge, Color.White, 0.72f);
+            fonts.DrawTextCentered(spriteBatch, PlayerPower.ToString(), playerBadge, Color.White, 0.95f);
 
             var opponentBadge = new Vector2(inner.X + inner.Width * 0.74f, badgeY);
             shapes.DrawHexagonFramed(opponentBadge, radius,
                 new Color(186, 74, 48), new Color(255, 190, 150), 2f, false);
-            fonts.DrawTextCentered(spriteBatch, OpponentPower.ToString(), opponentBadge, Color.White, 0.72f);
+            fonts.DrawTextCentered(spriteBatch, OpponentPower.ToString(), opponentBadge, Color.White, 0.95f);
 
             // Hexagono con el indice de la locacion
             var indexCenter = new Vector2(Panel.Center.X, Panel.Y);
@@ -133,16 +150,16 @@ namespace SnapClone.UI.Components
             shapes.DrawHexagonFramed(indexCenter, indexRadius,
                 new Color(224, 186, 96), new Color(90, 66, 28), 2f, false);
             fonts.DrawTextCentered(spriteBatch, (Index + 1).ToString(), indexCenter,
-                new Color(28, 24, 16), 0.5f);
+                new Color(28, 24, 16), 0.7f);
         }
 
-        public static void DrawLocationArt(ShapeDrawer shapes, Rectangle art, int index, float alpha)
+        public static void DrawLocationArt(ShapeDrawer shapes, Rectangle art, int variant, float alpha)
         {
             if (art.Width <= 8 || art.Height <= 8) return;
 
             Color planet, glow, ground;
 
-            switch (index % 3)
+            switch (((variant % 4) + 4) % 4)
             {
                 case 0:
                     planet = new Color(96, 132, 196);
@@ -154,10 +171,16 @@ namespace SnapClone.UI.Components
                     glow = new Color(216, 152, 212);
                     ground = new Color(38, 24, 42);
                     break;
-                default:
+                case 2:
                     planet = new Color(96, 168, 142);
                     glow = new Color(162, 228, 198);
                     ground = new Color(20, 42, 36);
+                    break;
+                default:
+                    // Limbo: un sol naranja sobre un cielo violeta.
+                    planet = new Color(232, 148, 72);
+                    glow = new Color(255, 206, 138);
+                    ground = new Color(44, 26, 40);
                     break;
             }
 

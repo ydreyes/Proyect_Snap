@@ -68,10 +68,11 @@ namespace SnapClone.Harness
                 "los estados comparten color");
 
             Check("ui tokens: ui scale acotado",
-                Math.Abs(UiTheme.UiScale(720, 1280) - 1f) < 0.001f &&
-                UiTheme.UiScale(360, 640) >= 0.75f &&
-                UiTheme.UiScale(2160, 3840) <= 2f,
-                "el escalado sale del rango 0.75..2");
+                Math.Abs(UiTheme.UiScale(720, 1280) -
+                    UiTheme.ReadabilityScale) < 0.001f &&
+                UiTheme.UiScale(360, 640) >= 1f &&
+                UiTheme.UiScale(2160, 3840) <= 3f,
+                "el escalado sale del rango 1..3");
         }
 
         private static void RunScaffoldChecks()
@@ -108,7 +109,9 @@ namespace SnapClone.Harness
                 inset.Content.Left >= 24 && inset.Content.Right <= 696,
                 "el contenido invade el notch o los gestos");
             Check("scaffold: ui scale con insets",
-                Math.Abs(inset.UiScale - MathF.Min(672f / 720f, 1200f / 1280f)) < 0.001f,
+                Math.Abs(inset.UiScale -
+                    MathF.Min(672f / 720f, 1200f / 1280f) *
+                    UiTheme.ReadabilityScale) < 0.001f,
                 $"escala {inset.UiScale}");
         }
 

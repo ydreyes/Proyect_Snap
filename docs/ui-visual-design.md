@@ -21,8 +21,10 @@ juego, la economia, el formato de guardado y el combate no cambian.
   los metodos (`Measure`, `DrawText`, `DrawRole*`). La galeria de UI permite
   forzar ese camino con `new FontService(content, forceFallback: true)` y
   muestra el estado `RUNTIME TTF`/`FALLBACK FORZADO`.
-- Los metodos heredados conservan la base de 22 px para no mover el layout del
-  combate ni de las escenas no redisenadas.
+- Los metodos heredados (escenas de combate, menu de pausa y componentes
+  antigüos) usan una base de 26 px que ahora se multiplica por la escala del
+  viewport, de modo que el texto crece con la pantalla en vez de quedar en
+  pixeles fijos.
 - El rol numerico usa cifras tabulares: cada digito ocupa una celda del ancho
   maximo de la fuente, de modo que coste, poder, precios y puntos no desplazan
   el texto al cambiar de valor.
@@ -46,22 +48,25 @@ Type scale (unidades de diseno 720 x 1280):
 
 | Rol | Tamano |
 | --- | --- |
-| `DisplayXl` | 64 |
-| `Display` | 44 |
-| `Heading` | 32 |
-| `Numeric` | 34 |
-| `NumericSmall` | 24 |
-| `Label` | 22 |
-| `LabelSmall` | 18 |
-| `Body` | 17 |
-| `Caption` | 14 |
+| `DisplayXl` | 74 |
+| `Display` | 50 |
+| `Heading` | 37 |
+| `Numeric` | 39 |
+| `NumericSmall` | 28 |
+| `Label` | 26 |
+| `LabelSmall` | 21 |
+| `Body` | 20 |
+| `Caption` | 16 |
 
 Espaciado: `SpaceXs` 4, `SpaceSm` 8, `SpaceMd` 12, `SpaceLg` 18, `SpaceXl` 28,
 `SpaceXxl` 40. Geometria: `CornerCut` 10, `BorderThickness` 2, `TouchTarget`
 44, `ElevationShadow` 3.
 
-Escalado: `UiScale = clamp(min(width / 720, height / 1280), 0.75, 2)`. Todos los
-tamanos de diseno se convierten con `Px(units, uiScale)`.
+Escalado: `UiScale = clamp(min(width / 720, height / 1280) * 1.5, 1, 3)`.
+`ReadabilityScale` (1.5) corrige que las etiquetas de 16-21 unidades quedaran
+demasiado pequenas en pantallas reales. Todos los tamanos de diseno se
+convierten con `Px(units, uiScale)` y la tipografia heredada usa la misma
+escala del viewport.
 
 ## Safe area and scaffold
 

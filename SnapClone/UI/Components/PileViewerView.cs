@@ -125,19 +125,19 @@ namespace SnapClone.UI.Components
 
             var pageRect = new Rectangle(prev.X - 64, header.Y, 60, header.Height);
             fonts.DrawTextCentered(spriteBatch, $"{Page + 1} / {pageSize}", pageRect,
-                new Color(196, 214, 240), 0.5f);
+                new Color(196, 214, 240), 0.62f);
 
             bool canPage = pageSize > 1;
             var arrowColor = canPage ? Color.White : new Color(120, 128, 140);
 
             shapes.DrawBeveledPanel(prev, new Color(24, 32, 52), canPage ? accent : new Color(60, 68, 82), 2, 6);
             shapes.DrawBeveledPanel(next, new Color(24, 32, 52), canPage ? accent : new Color(60, 68, 82), 2, 6);
-            fonts.DrawTextCentered(spriteBatch, "<", prev, arrowColor, 0.75f);
-            fonts.DrawTextCentered(spriteBatch, ">", next, arrowColor, 0.75f);
+            fonts.DrawTextCentered(spriteBatch, "<", prev, arrowColor, 0.9f);
+            fonts.DrawTextCentered(spriteBatch, ">", next, arrowColor, 0.9f);
 
             var title = new Rectangle(header.X + 6, header.Y, Math.Max(10, pageRect.X - header.X - 10), header.Height);
             fonts.DrawTextCenteredFit(spriteBatch, SelectedPile.DisplayName(), title,
-                new Color(232, 226, 210), 0.62f, 0.34f);
+                new Color(232, 226, 210), 0.75f, 0.42f);
         }
 
         private void DrawCards(SpriteBatch spriteBatch, ShapeDrawer shapes, FontService fonts,
@@ -147,7 +147,7 @@ namespace SnapClone.UI.Components
 
             if (cards.Count == 0)
             {
-                fonts.DrawTextCentered(spriteBatch, "SIN CARTAS", area, Color.White * 0.45f, 0.65f);
+                fonts.DrawTextCentered(spriteBatch, "SIN CARTAS", area, Color.White * 0.45f, 0.8f);
                 return;
             }
 
@@ -224,10 +224,10 @@ namespace SnapClone.UI.Components
                 var countRect = new Rectangle(rect.X + 2, nameRect.Bottom, rect.Width - 4, (int)(rect.Height * 0.36f));
 
                 fonts.DrawTextCenteredFit(spriteBatch, pile.DisplayName(), nameRect,
-                    selected ? Color.White : new Color(190, 198, 212), 0.42f, 0.24f);
+                    selected ? Color.White : new Color(190, 198, 212), 0.52f, 0.30f);
 
                 fonts.DrawTextCentered(spriteBatch, piles.Count(pile).ToString(), countRect,
-                    selected ? new Color(255, 214, 128) : new Color(150, 160, 178), 0.6f);
+                    selected ? new Color(255, 214, 128) : new Color(150, 160, 178), 0.72f);
             }
         }
     }

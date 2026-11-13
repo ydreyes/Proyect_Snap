@@ -40,6 +40,13 @@ namespace SnapClone.UI.Components
 
         private readonly SpriteFont _defaultFont;
 
+        // Escala del viewport para la API heredada: antes el texto se dibujaba
+        // en pixeles fijos y quedaba diminuto en pantallas reales.
+        private readonly IGraphicsDeviceService _graphicsDeviceService;
+        private float _legacyScale = UiTheme.ReadabilityScale;
+        private int _legacyViewportWidth = -1;
+        private int _legacyViewportHeight = -1;
+
         private FontSystem _displaySystem;
         private FontSystem _uiSystem;
         private FontSystem _bodySystem;
@@ -54,6 +61,8 @@ namespace SnapClone.UI.Components
 
         public FontService(ContentManager content)
         {
+            _graphicsDeviceService = ResolveGraphicsDeviceService(content);
+
             try
             {
                 _defaultFont = content.Load<SpriteFont>("DefaultFont");
@@ -73,6 +82,8 @@ namespace SnapClone.UI.Components
         /// </summary>
         public FontService(ContentManager content, bool forceFallback)
         {
+            _graphicsDeviceService = ResolveGraphicsDeviceService(content);
+
             try
             {
                 _defaultFont = content.Load<SpriteFont>("DefaultFont");
@@ -94,6 +105,49 @@ namespace SnapClone.UI.Components
 
         public bool HasFont => _defaultFont != null || UsesRuntimeFonts;
         public bool UsesRuntimeFonts { get; private set; }
+
+        private static IGraphicsDeviceService ResolveGraphicsDeviceService(
+            ContentManager content)
+        {
+            try
+            {
+                return content?.ServiceProvider?.GetService(
+                    typeof(IGraphicsDeviceService)) as IGraphicsDeviceService;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Escala efectiva del texto heredado. Se recalcula solo cuando cambia
+        /// el viewport para no consultar el dispositivo en cada glifo.
+        /// </summary>
+        private float LegacyScale
+        {
+            get
+            {
+                var device = _graphicsDeviceService?.GraphicsDevice;
+                if (device == null) return UiTheme.ReadabilityScale;
+
+                var viewport = device.Viewport;
+                if (viewport.Width != _legacyViewportWidth ||
+                    viewport.Height != _legacyViewportHeight)
+                {
+                    _legacyViewportWidth = viewport.Width;
+                    _legacyViewportHeight = viewport.Height;
+                    _legacyScale = UiTheme.UiScale(viewport.Width,
+                        viewport.Height);
+                }
+
+                return _legacyScale;
+            }
+        }
+
+        private int LegacyPixelSize(float scale) =>
+            Math.Max(8, (int)MathF.Round(LegacyBaseSize * scale * LegacyScale));
+
 
         /// <summary>Error de carga, solo para diagnostico y galeria.</summary>
         public string LoadError { get; private set; }
@@ -200,12 +254,12 @@ namespace SnapClone.UI.Components
 
             if (UsesRuntimeFonts)
             {
-                var font = GetRoleFont(TextRole.Ui, LegacyBaseSize);
-                return font.MeasureString(text) * scale;
+                var font = GetRoleFont(TextRole.Ui, LegacyPixelSize(scale));
+                return font.MeasureString(text);
             }
 
             if (_defaultFont == null) return Vector2.Zero;
-            return _defaultFont.MeasureString(text) * scale;
+            return _defaultFont.MeasureString(text) * (scale * LegacyScale);
         }
 
         public void DrawText(SpriteBatch spriteBatch, string text, Vector2 position,
@@ -215,15 +269,15 @@ namespace SnapClone.UI.Components
 
             if (UsesRuntimeFonts)
             {
-                var font = GetRoleFont(TextRole.Ui, LegacyBaseSize);
+                var font = GetRoleFont(TextRole.Ui, LegacyPixelSize(scale));
                 font.DrawText(spriteBatch, text, position, color, 0f,
-                    Vector2.Zero, new Vector2(scale), 0f);
+                    Vector2.Zero, Vector2.One, 0f);
                 return;
             }
 
             if (_defaultFont == null) return;
             spriteBatch.DrawString(_defaultFont, text, position, color, 0f,
-                Vector2.Zero, scale, SpriteEffects.None, 0f);
+                Vector2.Zero, scale * LegacyScale, SpriteEffects.None, 0f);
         }
 
         public void DrawTextCentered(SpriteBatch spriteBatch, string text,
@@ -268,8 +322,9 @@ namespace SnapClone.UI.Components
             if (string.IsNullOrEmpty(text)) return;
 
             float lineHeight = (UsesRuntimeFonts
-                ? GetRoleFont(TextRole.Ui, LegacyBaseSize).LineHeight
-                : _defaultFont?.LineSpacing ?? LegacyBaseSize) * scale;
+                ? GetRoleFont(TextRole.Ui, LegacyPixelSize(scale)).LineHeight
+                : (_defaultFont?.LineSpacing ?? LegacyBaseSize) * scale *
+                    LegacyScale);
 
             float y = bounds.Y;
             foreach (string paragraph in text.Split('\n'))

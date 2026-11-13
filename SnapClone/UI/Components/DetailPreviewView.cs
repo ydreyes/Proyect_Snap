@@ -164,7 +164,7 @@ namespace SnapClone.UI.Components
 
                 fonts.DrawTextCenteredFit(spriteBatch,
                     $"TEMA: {DraftThemeText.Label(theme.Value)}",
-                    themeRect, CardView.DraftThemeColor(theme.Value), 0.55f, 0.32f);
+                    themeRect, CardView.DraftThemeColor(theme.Value), 0.7f, 0.42f);
 
                 textTop = themeRect.Bottom + pad / 2;
             }
@@ -178,7 +178,7 @@ namespace SnapClone.UI.Components
                     Math.Max(18, pad));
 
                 fonts.DrawTextCenteredFit(spriteBatch, CardStatus, statusRect,
-                    new Color(255, 200, 120), 0.5f, 0.28f);
+                    new Color(255, 200, 120), 0.62f, 0.36f);
 
                 textTop = statusRect.Bottom + pad / 2;
             }
@@ -198,7 +198,7 @@ namespace SnapClone.UI.Components
                 description = "COPIA. " + description;
 
             fonts.DrawTextWrapped(spriteBatch, description, textArea,
-                new Color(236, 238, 244), 0.5f);
+                new Color(236, 238, 244), 0.62f);
 
             if (CanActivate)
             {
@@ -207,7 +207,7 @@ namespace SnapClone.UI.Components
                 shapes.DrawBeveledPanel(button, new Color(30, 104, 74),
                     new Color(126, 214, 170), 3, 10);
                 fonts.DrawTextCentered(spriteBatch, "ACTIVAR", button,
-                    Color.White, 0.7f);
+                    Color.White, 0.85f);
             }
         }
 
@@ -233,7 +233,8 @@ namespace SnapClone.UI.Components
             bool visible = Zone.IsVisibleTo(BoardSide.Player);
 
             if (visible)
-                LocationView.DrawLocationArt(shapes, art, Zone.ZoneIndex, 1f);
+                LocationView.DrawLocationArt(shapes, art,
+                    LocationView.ArtVariantFor(Zone.Definition?.Id), 1f);
 
             int nameTop = art.Bottom + pad;
             int nameHeight = Math.Max(24, (int)(contentHeight * 0.10f));
@@ -243,12 +244,12 @@ namespace SnapClone.UI.Components
             {
                 fonts.DrawTextCenteredFit(spriteBatch,
                     Zone.Definition != null ? Zone.Definition.Name : "LOCACION",
-                    nameRect, new Color(240, 226, 190), 0.9f, 0.45f);
+                    nameRect, new Color(240, 226, 190), 1.05f, 0.55f);
             }
             else
             {
                 fonts.DrawTextCenteredFit(spriteBatch, "LOCACION DESCONOCIDA",
-                    nameRect, new Color(170, 180, 198), 0.72f, 0.42f);
+                    nameRect, new Color(170, 180, 198), 0.85f, 0.5f);
             }
 
             int effectTop = nameRect.Bottom + pad / 2;
@@ -262,7 +263,7 @@ namespace SnapClone.UI.Components
                     Math.Max(18, pad));
 
                 fonts.DrawTextCenteredFit(spriteBatch, ZoneStatus, statusRect,
-                    new Color(255, 200, 120), 0.5f, 0.28f);
+                    new Color(255, 200, 120), 0.62f, 0.36f);
 
                 effectTop = statusRect.Bottom + pad / 2;
             }
@@ -289,7 +290,7 @@ namespace SnapClone.UI.Components
                 effectColor = new Color(170, 180, 198);
             }
 
-            fonts.DrawTextWrapped(spriteBatch, effectText, effectArea, effectColor, 0.5f);
+            fonts.DrawTextWrapped(spriteBatch, effectText, effectArea, effectColor, 0.62f);
 
             DrawTotals(spriteBatch, shapes, fonts, panel, bottom, pad);
         }
@@ -306,19 +307,19 @@ namespace SnapClone.UI.Components
             shapes.DrawHexagonFramed(playerCenter, radius,
                 new Color(44, 96, 196), new Color(168, 204, 255), 2f, false);
             fonts.DrawTextCentered(spriteBatch, Zone.GetPlayerPower().ToString(),
-                playerCenter, Color.White, 0.85f);
+                playerCenter, Color.White, 1.0f);
 
             shapes.DrawHexagonFramed(rivalCenter, radius,
                 new Color(186, 74, 48), new Color(255, 190, 150), 2f, false);
             fonts.DrawTextCentered(spriteBatch, Zone.GetAIPower().ToString(),
-                rivalCenter, Color.White, 0.85f);
+                rivalCenter, Color.White, 1.0f);
 
             fonts.DrawTextCentered(spriteBatch, "JUGADOR",
                 new Vector2(playerCenter.X, playerCenter.Y - radius - 9f),
-                new Color(150, 170, 210), 0.4f);
+                new Color(150, 170, 210), 0.52f);
             fonts.DrawTextCentered(spriteBatch, "RIVAL",
                 new Vector2(rivalCenter.X, rivalCenter.Y - radius - 9f),
-                new Color(210, 160, 150), 0.4f);
+                new Color(210, 160, 150), 0.52f);
         }
     }
 }

@@ -208,8 +208,15 @@ namespace SnapClone.UI.Rendering
                 accent, UiTheme.NumericSmall, uiScale);
 
             int textX = (int)(iconCenter.X + radius + padding);
-            var valueBounds = new Rectangle(textX, bounds.Y,
-                Math.Max(0, bounds.Right - textX - padding), bounds.Height);
+            int labelSpace = string.IsNullOrEmpty(label)
+                ? 0
+                : UiTheme.Px(UiTheme.Caption, uiScale) +
+                    UiTheme.Px(2, uiScale);
+            var valueBounds = new Rectangle(textX,
+                bounds.Y + UiTheme.Px(2, uiScale),
+                Math.Max(0, bounds.Right - textX - padding),
+                Math.Max(1, bounds.Height - labelSpace -
+                    UiTheme.Px(4, uiScale)));
             _fonts.DrawRoleCentered(spriteBatch, TextRole.Numeric, value,
                 valueBounds, UiTheme.TextPrimary, UiTheme.NumericSmall, uiScale);
 

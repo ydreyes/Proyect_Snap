@@ -118,7 +118,7 @@ namespace SnapClone.UI.Layout
         {
             int pad = UiTheme.Px(UiTheme.SpaceMd, UiScale);
             int chipWidth = UiTheme.Px(164, UiScale);
-            int chipHeight = UiTheme.Px(46, UiScale);
+            int chipHeight = UiTheme.Px(56, UiScale);
 
             var chipBounds = new Rectangle(
                 Header.Right - pad - chipWidth,

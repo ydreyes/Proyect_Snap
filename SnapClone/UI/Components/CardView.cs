@@ -93,7 +93,7 @@ namespace SnapClone.UI.Components
                 shapes.DrawBeveledPanel(bounds, new Color(14, 18, 30),
                     new Color(90, 104, 130), 3, 8);
                 fonts.DrawTextCentered(spriteBatch, "???", bounds,
-                    Color.White * 0.6f, 0.8f);
+                    Color.White * 0.6f, 1.0f);
                 return;
             }
 
@@ -125,7 +125,7 @@ namespace SnapClone.UI.Components
 
             shapes.DrawHexagonFramed(powerCenter, orbRadius,
                 new Color(196, 96, 32), new Color(255, 205, 120), 2f, false);
-            fonts.DrawTextCentered(spriteBatch, power.ToString(), powerCenter, Color.White, 0.62f);
+            fonts.DrawTextCentered(spriteBatch, power.ToString(), powerCenter, Color.White, 0.85f);
 
             DrawPerkBadge(spriteBatch, shapes, fonts, powerCenter, orbRadius);
             DrawMoveBadge(spriteBatch, shapes, fonts, bounds, orbRadius);
@@ -135,11 +135,11 @@ namespace SnapClone.UI.Components
             {
                 var nameRect = new Rectangle(bounds.X + 2, bounds.Bottom - (int)(bounds.Height * 0.22f), bounds.Width - 4, (int)(bounds.Height * 0.2f));
                 shapes.DrawRectangle(nameRect, Color.Black * 0.55f);
-                fonts.DrawTextCenteredFit(spriteBatch, Card.Definition.Name, nameRect, new Color(232, 226, 210), 0.34f, 0.22f);
+                fonts.DrawTextCenteredFit(spriteBatch, Card.Definition.Name, nameRect, new Color(232, 226, 210), 0.5f, 0.30f);
             }
             else
             {
-                fonts.DrawTextCentered(spriteBatch, "?", bounds, Color.White * 0.35f, 0.8f);
+                fonts.DrawTextCentered(spriteBatch, "?", bounds, Color.White * 0.35f, 1.0f);
             }
         }
 
@@ -167,10 +167,10 @@ namespace SnapClone.UI.Components
             int power = Card != null ? Card.CurrentPower : 0;
 
             shapes.DrawCircleFramed(costCenter, orbRadius, new Color(38, 86, 176), new Color(160, 200, 255), 2f);
-            fonts.DrawTextCentered(spriteBatch, cost.ToString(), costCenter, Color.White, 0.6f);
+            fonts.DrawTextCentered(spriteBatch, cost.ToString(), costCenter, Color.White, 0.82f);
 
             shapes.DrawHexagonFramed(powerCenter, orbRadius, new Color(196, 96, 32), new Color(255, 205, 120), 2f, false);
-            fonts.DrawTextCentered(spriteBatch, power.ToString(), powerCenter, Color.White, 0.6f);
+            fonts.DrawTextCentered(spriteBatch, power.ToString(), powerCenter, Color.White, 0.82f);
 
             DrawPerkBadge(spriteBatch, shapes, fonts, powerCenter, orbRadius);
             DrawUpgradeBadge(spriteBatch, shapes, fonts, bounds, orbRadius);
@@ -179,9 +179,9 @@ namespace SnapClone.UI.Components
             var nameRect = new Rectangle(bounds.X + 2, bounds.Bottom - (int)(bounds.Height * 0.24f), bounds.Width - 4, (int)(bounds.Height * 0.22f));
             shapes.DrawRectangle(nameRect, Color.Black * 0.5f);
             if (Card != null)
-                fonts.DrawTextCentered(spriteBatch, Card.Definition.Name, nameRect, new Color(232, 226, 210), 0.4f);
+                fonts.DrawTextCenteredFit(spriteBatch, Card.Definition.Name, nameRect, new Color(232, 226, 210), 0.55f, 0.30f);
             else
-                fonts.DrawTextCentered(spriteBatch, "MANO", nameRect, Color.White * 0.4f, 0.36f);
+                fonts.DrawTextCentered(spriteBatch, "MANO", nameRect, Color.White * 0.4f, 0.5f);
 
             if (!IsAffordable)
                 shapes.DrawRectangle(bounds, Color.Black * 0.45f);
@@ -203,7 +203,7 @@ namespace SnapClone.UI.Components
 
             shapes.DrawRectangle(themeRect, Color.Black * 0.5f);
             fonts.DrawTextCenteredFit(spriteBatch, DraftThemeText.Label(theme),
-                themeRect, DraftThemeColor(theme), 0.32f, 0.18f);
+                themeRect, DraftThemeColor(theme), 0.46f, 0.28f);
         }
 
         /// <summary>Color estable por tema para la etiqueta de draft.</summary>
@@ -230,7 +230,7 @@ namespace SnapClone.UI.Components
 
             shapes.DrawCircleFramed(center, radius,
                 new Color(32, 92, 112), new Color(140, 230, 240), 1.5f);
-            fonts.DrawTextCentered(spriteBatch, "M", center, Color.White, 0.30f);
+            fonts.DrawTextCentered(spriteBatch, "M", center, Color.White, 0.44f);
         }
 
         /// <summary>Badge pequeno con el modificador total de los perks.</summary>
@@ -248,7 +248,7 @@ namespace SnapClone.UI.Components
             var border = bonus > 0 ? new Color(150, 230, 170) : new Color(240, 160, 150);
 
             shapes.DrawCircleFramed(center, radius, fill, border, 1.5f);
-            fonts.DrawTextCentered(spriteBatch, text, center, Color.White, 0.34f);
+            fonts.DrawTextCentered(spriteBatch, text, center, Color.White, 0.46f);
         }
 
         /// <summary>Marca discreta de mejoras permanentes de la run.</summary>
@@ -262,7 +262,7 @@ namespace SnapClone.UI.Components
 
             shapes.DrawCircleFramed(center, radius,
                 new Color(112, 82, 24), new Color(240, 204, 120), 1.5f);
-            fonts.DrawTextCentered(spriteBatch, $"+{Card.UpgradeCount}", center, Color.White, 0.30f);
+            fonts.DrawTextCentered(spriteBatch, $"+{Card.UpgradeCount}", center, Color.White, 0.42f);
         }
     }
 }

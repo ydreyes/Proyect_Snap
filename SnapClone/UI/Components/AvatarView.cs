@@ -33,7 +33,7 @@ namespace SnapClone.UI.Components
 
             // Inicial del nombre como "retrato" provisional
             string initial = string.IsNullOrEmpty(Name) ? "?" : Name.Substring(0, 1);
-            fonts.DrawTextCentered(spriteBatch, initial, center, new Color(226, 218, 198), 1.6f);
+            fonts.DrawTextCentered(spriteBatch, initial, center, new Color(226, 218, 198), 1.9f);
 
             // Banner de nombre
             var banner = new Rectangle(
@@ -44,7 +44,7 @@ namespace SnapClone.UI.Components
 
             shapes.DrawBeveledPanel(banner, new Color(18, 22, 38), Accent, 2, 8);
             fonts.DrawTextCenteredFit(spriteBatch, Name.ToUpperInvariant(), banner,
-                Color.White, 0.55f, 0.30f);
+                Color.White, 0.75f, 0.38f);
         }
     }
 }

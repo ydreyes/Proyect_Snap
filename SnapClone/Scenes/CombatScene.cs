@@ -204,6 +204,21 @@ namespace SnapClone.Scenes
             var zoneRegistry = _services.Has<ZoneRegistry>() ? _services.Get<ZoneRegistry>() : null;
             var zoneDefs = zoneRegistry != null ? zoneRegistry.GetAll() : new List<Data.Definitions.ZoneDef>();
 
+            // Las tres locaciones del combate se eligen entre todas las
+            // implementadas. Antes se tomaban siempre las tres primeras del
+            // registro, asi que la cuarta (LIMBO) nunca aparecia.
+            int seed = _runState?.PendingCombat?.Seed ?? 0;
+            seed = seed * 397 + (_runState?.TotalCombats ?? 0) * 31 +
+                (_runState?.ActIndex ?? 0);
+            var random = new System.Random(seed);
+            for (int i = zoneDefs.Count - 1; i > 0; i--)
+            {
+                int j = random.Next(i + 1);
+                var tmp = zoneDefs[i];
+                zoneDefs[i] = zoneDefs[j];
+                zoneDefs[j] = tmp;
+            }
+
             for (int i = 0; i < 3; i++)
             {
                 Data.Definitions.ZoneDef def;
@@ -227,7 +242,8 @@ namespace SnapClone.Scenes
                 {
                     Index = i,
                     Name = def.Name,
-                    EffectText = def.Description
+                    EffectText = def.Description,
+                    ArtVariant = LocationView.ArtVariantFor(def.Id)
                 });
             }
         }
@@ -1608,9 +1624,14 @@ namespace SnapClone.Scenes
             var banner = _layoutManager.StatusBanner;
             _shapeDrawer.DrawBeveledPanel(banner, new Color(14, 22, 40), new Color(120, 186, 240), 3, 12);
 
-            var turnRect = new Rectangle(banner.X, banner.Y + 2, banner.Width, (int)(banner.Height * 0.34f));
-            var runRect = new Rectangle(banner.X, turnRect.Bottom, banner.Width, (int)(banner.Height * 0.32f));
-            var timerRect = new Rectangle(banner.X, runRect.Bottom, banner.Width, (int)(banner.Height * 0.30f));
+            var turnRect = new Rectangle(banner.X, banner.Y + 2,
+                (int)(banner.Width * 0.40f), (int)(banner.Height * 0.36f));
+            var timerRect = new Rectangle(
+                banner.X + (int)(banner.Width * 0.60f), turnRect.Y,
+                (int)(banner.Width * 0.40f), turnRect.Height);
+            var runRect = new Rectangle(banner.X,
+                banner.Y + (int)(banner.Height * 0.62f), banner.Width,
+                (int)(banner.Height * 0.34f));
 
             int maxTurns = TurnManager.MaxTurnsFor(_boardState);
             int displayTurn = Math.Min(_turnManager.CurrentTurn, maxTurns);

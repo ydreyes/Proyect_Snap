@@ -84,6 +84,14 @@ namespace SnapClone.UI.Theme
         // ------------------------------------------------------------------
 
         /// <summary>
+        /// Multiplicador de legibilidad aplicado sobre la escala base.
+        /// Los tamanos originales de 720x1280 quedaban demasiado pequenos en
+        /// pantallas reales (etiquetas de 10-12 px fisicos), asi que toda la
+        /// tipografia y la geometria que depende de ella crecen un 50%.
+        /// </summary>
+        public const float ReadabilityScale = 1.5f;
+
+        /// <summary>
         /// Factor de las unidades de diseno para el viewport actual.
         /// Mantiene la legibilidad en telefonos mas grandes sin romper el
         /// diseno base de 720x1280.
@@ -93,10 +101,14 @@ namespace SnapClone.UI.Theme
 
         public static float UiScale(int width, int height)
         {
-            if (width <= 0 || height <= 0) return 1f;
+            if (width <= 0 || height <= 0) return ReadabilityScale;
 
-            float scale = MathF.Min(width / 720f, height / 1280f);
-            return MathHelper.Clamp(scale, 0.75f, 2f);
+            float scale = MathF.Min(width / 720f, height / 1280f) *
+                ReadabilityScale;
+
+            // El piso evita que una ventana pequena vuelva a hacer ilegible
+            // el texto; el techo limita el tamano en pantallas muy densas.
+            return MathHelper.Clamp(scale, 1f, 3f);
         }
 
         public static int Px(float designUnits, float uiScale) =>

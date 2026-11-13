@@ -141,7 +141,7 @@ namespace SnapClone.UI.Components
                         panel.Y + (int)(panel.Height * 0.145f),
                         (int)(panel.Width * 0.88f),
                         (int)(panel.Height * 0.06f)),
-                    new Color(170, 190, 215), 0.42f, 0.25f);
+                    new Color(170, 190, 215), 0.56f, 0.34f);
             }
 
             if (!string.IsNullOrEmpty(Error))
@@ -151,7 +151,7 @@ namespace SnapClone.UI.Components
                         panel.Y + (int)(panel.Height * 0.21f),
                         (int)(panel.Width * 0.84f),
                         (int)(panel.Height * 0.06f)),
-                    new Color(244, 170, 150), 0.45f, 0.28f);
+                    new Color(244, 170, 150), 0.58f, 0.36f);
             }
 
             if (ConfirmAbandon)
@@ -187,7 +187,7 @@ namespace SnapClone.UI.Components
             _shapeDrawer.DrawBeveledPanel(bounds, new Color(24, 34, 52),
                 new Color(140, 170, 210), 2, 8);
             _fontService.DrawTextCentered(spriteBatch, "II", bounds,
-                new Color(220, 230, 245), 0.8f);
+                new Color(220, 230, 245), 0.95f);
         }
 
         private Rectangle GetPanel()
@@ -218,7 +218,7 @@ namespace SnapClone.UI.Components
         {
             _shapeDrawer.DrawBeveledPanel(bounds, fill, border, 3, 10);
             _fontService.DrawTextCenteredFit(spriteBatch, label, bounds,
-                Color.White, 0.72f, 0.4f);
+                Color.White, 0.85f, 0.48f);
         }
 
         private static bool IsInside(Rectangle bounds, Vector2 point)
